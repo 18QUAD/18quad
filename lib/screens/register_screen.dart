@@ -14,7 +14,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _displayNameController = TextEditingController();
-  int _selectedIconId = 0;
+
   bool _isLoading = false;
   String? _error;
 
@@ -32,7 +32,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
         displayName: _displayNameController.text.trim(),
-        iconId: _selectedIconId,
       );
       if (mounted) Navigator.of(context).pushReplacementNamed('/home');
     } catch (e) {
@@ -67,28 +66,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 controller: _displayNameController,
                 decoration: const InputDecoration(labelText: '表示名'),
                 validator: (value) => value == null || value.isEmpty ? '入力必須' : null,
-              ),
-              const SizedBox(height: 16),
-              const Text('アイコン選択', style: TextStyle(fontWeight: FontWeight.bold)),
-              DropdownButton<int>(
-                value: _selectedIconId,
-                isExpanded: true,
-                items: List.generate(10, (i) => DropdownMenuItem(
-                  value: i,
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        backgroundImage: AssetImage('assets/icons/icon_$i.png'),
-                        radius: 16,
-                      ),
-                      const SizedBox(width: 8),
-                      Text('アイコン $i'),
-                    ],
-                  ),
-                )),
-                onChanged: (val) {
-                  if (val != null) setState(() => _selectedIconId = val);
-                },
               ),
               const SizedBox(height: 24),
               if (_error != null)

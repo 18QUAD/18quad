@@ -1,6 +1,6 @@
-// lib/screens/ranking_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../widgets/app_scaffold.dart';
 
 class RankingScreen extends StatefulWidget {
@@ -11,6 +11,7 @@ class RankingScreen extends StatefulWidget {
 }
 
 class _RankingScreenState extends State<RankingScreen> {
+  final _auth = FirebaseAuth.instance;
   List<Map<String, dynamic>> rankings = [];
   bool isLoading = true;
 
@@ -37,11 +38,13 @@ class _RankingScreenState extends State<RankingScreen> {
             .doc(uid)
             .get();
 
-        final name = userDoc.data()?['name'] ?? '(不明)';
+        final displayName = userDoc.data()?['displayName'] ?? '(不明)';
+        final iconId = userDoc.data()?['iconId'] ?? 0;
 
         data.add({
           'uid': uid,
-          'name': name,
+          'displayName': displayName,
+          'iconId': iconId,
           'count': count,
         });
       }
@@ -59,20 +62,47 @@ class _RankingScreenState extends State<RankingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final currentUid = _auth.currentUser?.uid;
+
     return AppScaffold(
       title: 'ランキング',
       child: isLoading
-          ? const Center(child: CircularProgressIndicator(color: Colors.pink))
+          ? const Center(child: CircularProgressIndicator())
           : ListView.builder(
               itemCount: rankings.length,
               itemBuilder: (context, index) {
-                final entry = rankings[index];
-                return ListTile(
-                  title: Text('${index + 1}位：${entry['name']}',
-                      style: const TextStyle(color: Colors.white)),
-                  trailing: Text('${entry['count']}',
-                      style: const TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.bold)),
+                final user = rankings[index];
+                final isCurrent = user['uid'] == currentUid;
+
+                return Container(
+                  color: isCurrent ? Colors.blue.shade900 : Colors.transparent,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    children: [
+                      Text(
+                        '${index + 1}位',
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                      const SizedBox(width: 12),
+                      CircleAvatar(
+                        backgroundImage:
+                            AssetImage('assets/icons/icon_${user['iconId']}.png'),
+                        radius: 16,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          user['displayName'],
+                          style: const TextStyle(fontSize: 16),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Text(
+                        '${user['count']}',
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                    ],
+                  ),
                 );
               },
             ),

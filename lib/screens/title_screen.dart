@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../widgets/app_scaffold.dart';
 
 class TitleScreen extends StatelessWidget {
@@ -12,27 +13,18 @@ class TitleScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Image.asset(
-              'assets/images/18quad_logo.png',
-              width: 200,
-              height: 200,
-              errorBuilder: (context, error, stackTrace) => const Icon(Icons.error, size: 100, color: Colors.white),
-            ),
-            const SizedBox(height: 24),
+            const Icon(Icons.warning_rounded, size: 100, color: Colors.white),
+            const SizedBox(height: 32),
             ElevatedButton.icon(
+              onPressed: () => Navigator.pushNamed(context, '/home'),
               icon: const Icon(Icons.flash_on),
               label: const Text('連打入力'),
-              onPressed: () {
-                Navigator.pushNamed(context, '/home');
-              },
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             ElevatedButton.icon(
+              onPressed: () => Navigator.pushNamed(context, '/ranking'),
               icon: const Icon(Icons.bar_chart),
               label: const Text('ランキング'),
-              onPressed: () {
-                Navigator.pushNamed(context, '/ranking');
-              },
             ),
           ],
         ),

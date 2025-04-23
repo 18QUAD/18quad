@@ -12,7 +12,6 @@ class AuthService {
     required String email,
     required String password,
     required String displayName,
-    required int iconId,
   }) async {
     final credential = await _auth.createUserWithEmailAndPassword(
       email: email,
@@ -22,7 +21,7 @@ class AuthService {
     final user = AppUser(
       uid: credential.user!.uid,
       displayName: displayName,
-      iconId: iconId,
+      iconUrl: '', // 任意画像未設定の場合の初期値
     );
 
     await _firestore.collection('users').doc(user.uid).set(user.toMap());

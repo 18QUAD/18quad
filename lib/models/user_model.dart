@@ -1,26 +1,26 @@
 class AppUser {
   final String uid;
   final String displayName;
-  final int iconId;
+  final String iconUrl;
 
   AppUser({
     required this.uid,
     required this.displayName,
-    required this.iconId,
+    required this.iconUrl,
   });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'displayName': displayName,
+      'iconUrl': iconUrl,
+    };
+  }
 
   factory AppUser.fromMap(String uid, Map<String, dynamic> data) {
     return AppUser(
       uid: uid,
       displayName: data['displayName'] ?? '',
-      iconId: data['iconId'] ?? 0,
+      iconUrl: data['iconUrl'] ?? '',
     );
-  }
-
-  Map<String, dynamic> toMap() {
-    return {
-      'displayName': displayName,
-      'iconId': iconId,
-    };
   }
 }
