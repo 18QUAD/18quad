@@ -1,0 +1,31 @@
+name: rennda_app
+description: 1.8京回連打計画「18QUAD」
+publish_to: 'none' # 一般公開しない場合はこれでOK
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Firebase core 初期化
+  firebase_core: ^2.15.1
+
+  # Firebase Authentication（匿名ログイン）
+  firebase_auth: ^4.6.2
+
+  # Firestore（クラウド保存）
+  cloud_firestore: ^4.9.2
+
+  # その他必要なら
+  shared_preferences: ^2.2.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
