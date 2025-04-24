@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/app_drawer.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../widgets/app_scaffold.dart';
@@ -65,7 +66,6 @@ class _RankingScreenState extends State<RankingScreen> {
     final currentUid = _auth.currentUser?.uid;
 
     return AppScaffold(
-  drawer: const AppDrawer(),
       title: 'ランキング',
       child: isLoading
           ? const Center(child: CircularProgressIndicator())
