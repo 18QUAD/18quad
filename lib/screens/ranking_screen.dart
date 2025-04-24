@@ -39,7 +39,7 @@ class _RankingScreenState extends State<RankingScreen> {
             .get();
 
         final displayName = userDoc.data()?['displayName'] ?? '(不明)';
-        final iconId = userDoc.data()?['iconId'] ?? 0;
+        final iconUrl = userDoc.data()?['iconUrl'] ?? '';
 
         data.add({
           'uid': uid,
@@ -86,7 +86,9 @@ class _RankingScreenState extends State<RankingScreen> {
                       const SizedBox(width: 12),
                       CircleAvatar(
                         backgroundImage:
-                            AssetImage('assets/icons/icon_${user['iconId']}.png'),
+                            user['iconUrl'] != null && user['iconUrl'].toString().isNotEmpty
+        ? NetworkImage(user['iconUrl'].replaceAll(RegExp(r'\s+'), '')) as ImageProvider
+        : const AssetImage('assets/icons/default.png'),
                         radius: 16,
                       ),
                       const SizedBox(width: 12),
