@@ -1,3 +1,4 @@
+// lib/widgets/app_drawer.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -18,7 +19,7 @@ class AppDrawer extends StatelessWidget {
     }
 
     return Drawer(
-      child: FutureBuilder<Map<String, dynamic>?>(
+      child: FutureBuilder<Map<String, dynamic>?> (
         future: _fetchUserData(uid),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
