@@ -12,21 +12,43 @@ class AppDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final user = FirebaseAuth.instance.currentUser;
+    final uid = user?.uid;
+
+    // 🔓 未ログイン状態のメニュー表示
     if (uid == null) {
-      return const Drawer(child: Center(child: Text('ログインしてください')));
+      return Drawer(
+        child: ListView(
+          children: [
+            const DrawerHeader(
+              child: Icon(Icons.warning, size: 48),
+            ),
+            ListTile(
+              leading: const Icon(Icons.login),
+              title: const Text('ログイン'),
+              onTap: () => Navigator.pushNamed(context, '/login'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.person_add),
+              title: const Text('新規登録'),
+              onTap: () => Navigator.pushNamed(context, '/register'),
+            ),
+          ],
+        ),
+      );
     }
 
+    // ✅ ログイン済み状態のメニュー表示
     return Drawer(
       child: FutureBuilder<Map<String, dynamic>?>(
         future: _fetchUserData(uid),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) {
+          if (!snapshot.hasData || snapshot.data == null) {
             return const Center(child: CircularProgressIndicator());
           }
-          final user = snapshot.data!;
-          final displayName = user['displayName'] ?? '名無し';
-          final isAdmin = user['isAdmin'] == true;
+          final userData = snapshot.data!;
+          final displayName = userData['displayName'] ?? '名無し';
+          final isAdmin = userData['isAdmin'] == true;
 
           return ListView(
             children: [
