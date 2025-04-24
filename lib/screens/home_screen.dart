@@ -79,3 +79,4 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 }
+// noop: force update for drawer integration
