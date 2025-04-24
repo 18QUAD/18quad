@@ -111,3 +111,4 @@ class _RankingScreenState extends State<RankingScreen> {
     );
   }
 }
+// noop: force update for drawer integration
