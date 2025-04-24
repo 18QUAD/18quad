@@ -182,4 +182,3 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 }
-// noop: force update for drawer integration

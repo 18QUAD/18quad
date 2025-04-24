@@ -39,12 +39,12 @@ class _RankingScreenState extends State<RankingScreen> {
             .get();
 
         final displayName = userDoc.data()?['displayName'] ?? '(不明)';
-        final iconUrl = userDoc.data()?['iconUrl'] ?? '';
+        final iconId = userDoc.data()?['iconId'] ?? 0;
 
         data.add({
           'uid': uid,
           'displayName': displayName,
-          'iconUrl': iconUrl,
+          'iconId': iconId,
           'count': count,
         });
       }
@@ -65,6 +65,7 @@ class _RankingScreenState extends State<RankingScreen> {
     final currentUid = _auth.currentUser?.uid;
 
     return AppScaffold(
+  drawer: const AppDrawer(),
       title: 'ランキング',
       child: isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -86,9 +87,7 @@ class _RankingScreenState extends State<RankingScreen> {
                       const SizedBox(width: 12),
                       CircleAvatar(
                         backgroundImage:
-                            user['iconUrl'] != null && user['iconUrl'].toString().isNotEmpty
-        ? NetworkImage(user['iconUrl'].replaceAll(RegExp(r'\s+'), '')) as ImageProvider
-        : const AssetImage('assets/icons/default.png'),
+                            AssetImage('assets/icons/icon_${user['iconId']}.png'),
                         radius: 16,
                       ),
                       const SizedBox(width: 12),
@@ -111,4 +110,3 @@ class _RankingScreenState extends State<RankingScreen> {
     );
   }
 }
-// noop: force update for drawer integration
