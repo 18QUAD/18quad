@@ -44,7 +44,7 @@ class _RankingScreenState extends State<RankingScreen> {
         data.add({
           'uid': uid,
           'displayName': displayName,
-          'iconId': iconId,
+          'iconUrl': iconUrl,
           'count': count,
         });
       }
