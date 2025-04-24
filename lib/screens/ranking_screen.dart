@@ -65,7 +65,7 @@ class _RankingScreenState extends State<RankingScreen> {
     final currentUid = _auth.currentUser?.uid;
 
     return AppScaffold(
-      title: 'ランキング　',
+      title: 'ランキング',
       child: isLoading
           ? const Center(child: CircularProgressIndicator())
           : ListView.builder(
