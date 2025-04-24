@@ -109,3 +109,4 @@ class _RankingScreenState extends State<RankingScreen> {
     );
   }
 }
+// force sync for ranking icon debug
