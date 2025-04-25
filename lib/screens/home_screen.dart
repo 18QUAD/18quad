@@ -25,8 +25,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
 
-    final doc =
-        await FirebaseFirestore.instance.collection('counts').doc(uid).get();
+    final doc = await FirebaseFirestore.instance.collection('counts').doc(uid).get();
     setState(() {
       _count = doc.data()?['count'] ?? 0;
       _isLoading = false;
@@ -49,8 +48,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+
     return AppScaffold(
       title: '連打チャレンジ',
+      user: user, // ← 追加された部分
       child: Center(
         child: _isLoading
             ? const CircularProgressIndicator()
