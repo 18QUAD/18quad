@@ -22,7 +22,6 @@ class _UserAddDialogState extends State<UserAddDialog> {
 
   Future<void> _createUser() async {
     setState(() => isLoading = true);
-
     try {
       final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
       final response = await http.post(
@@ -65,14 +64,17 @@ class _UserAddDialogState extends State<UserAddDialog> {
         children: [
           TextField(
             controller: nameController,
+            style: const TextStyle(color: Colors.black),
             decoration: const InputDecoration(labelText: '表示名'),
           ),
           TextField(
             controller: emailController,
+            style: const TextStyle(color: Colors.black),
             decoration: const InputDecoration(labelText: 'メールアドレス'),
           ),
           TextField(
             controller: passwordController,
+            style: const TextStyle(color: Colors.black),
             decoration: const InputDecoration(labelText: '初期パスワード'),
             obscureText: true,
           ),
