@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 import '../widgets/app_scaffold.dart';
 
@@ -22,9 +24,7 @@ class _AdminCountsScreenState extends State<AdminCountsScreen> {
   }
 
   Future<void> _loadData() async {
-    final countsSnapshot =
-        await FirebaseFirestore.instance.collection('counts').get();
-
+    final countsSnapshot = await FirebaseFirestore.instance.collection('counts').get();
     List<Map<String, dynamic>> result = [];
 
     for (var doc in countsSnapshot.docs) {
@@ -37,7 +37,6 @@ class _AdminCountsScreenState extends State<AdminCountsScreen> {
       final displayName = (userData['displayName'] ?? '').toString().isEmpty
           ? '(名前未設定)'
           : userData['displayName'].toString();
-
       final email = userData['email']?.toString() ?? '(emailなし)';
 
       result.add({
@@ -58,9 +57,94 @@ class _AdminCountsScreenState extends State<AdminCountsScreen> {
     }
   }
 
+  void _showCreateUserDialog() {
+    final emailController = TextEditingController();
+    final passwordController = TextEditingController();
+    final nameController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('新規ユーザー追加'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: emailController,
+              decoration: const InputDecoration(labelText: 'メールアドレス'),
+            ),
+            TextField(
+              controller: passwordController,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'パスワード'),
+            ),
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(labelText: '表示名'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('キャンセル'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _createUserFromFunction(
+                emailController.text.trim(),
+                passwordController.text.trim(),
+                nameController.text.trim(),
+              );
+            },
+            child: const Text('作成'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _createUserFromFunction(String email, String password, String displayName) async {
+    final user = FirebaseAuth.instance.currentUser;
+    final idToken = await user?.getIdToken();
+
+    const functionUrl = 'https://us-central1-<your-project-id>.cloudfunctions.net/createUser'; // ← 差し替え必要！
+
+    try {
+      final response = await http.post(
+        Uri.parse(functionUrl),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $idToken',
+        },
+        body: jsonEncode({
+          'email': email,
+          'password': password,
+          'displayName': displayName,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('ユーザーを作成しました')),
+        );
+        await _loadData();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('作成失敗: ${response.body}')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('通信エラー: $e')),
+      );
+    }
+  }
+
   void _showEditDialog(Map<String, dynamic> userData) {
-    final _nameController = TextEditingController(text: userData['displayName']);
-    final _emailController = TextEditingController(text: userData['email']);
+    final nameController = TextEditingController(text: userData['displayName']);
+    final emailController = TextEditingController(text: userData['email']);
 
     showDialog(
       context: context,
@@ -73,7 +157,7 @@ class _AdminCountsScreenState extends State<AdminCountsScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
-              controller: _nameController,
+              controller: nameController,
               style: const TextStyle(color: Colors.black),
               decoration: const InputDecoration(
                 labelText: '表示名',
@@ -82,7 +166,7 @@ class _AdminCountsScreenState extends State<AdminCountsScreen> {
             ),
             const SizedBox(height: 12),
             TextField(
-              controller: _emailController,
+              controller: emailController,
               style: const TextStyle(color: Colors.black),
               decoration: const InputDecoration(
                 labelText: 'メールアドレス',
@@ -99,8 +183,8 @@ class _AdminCountsScreenState extends State<AdminCountsScreen> {
           ElevatedButton(
             onPressed: () async {
               final uid = userData['uid'];
-              final newName = _nameController.text;
-              final newEmail = _emailController.text;
+              final newName = nameController.text;
+              final newEmail = emailController.text;
 
               await FirebaseFirestore.instance
                   .collection('users')
@@ -129,29 +213,39 @@ class _AdminCountsScreenState extends State<AdminCountsScreen> {
       user: user,
       child: isLoading
           ? const Center(child: CircularProgressIndicator())
-          : ListView.builder(
-              itemCount: data.length,
-              itemBuilder: (context, index) {
-                final item = data[index];
-                return ListTile(
-                  leading: Text('${index + 1}位', style: const TextStyle(color: Colors.white)),
-                  title: Text(
-                    item['displayName']?.toString() ?? '(名前未設定)',
-                    style: const TextStyle(color: Colors.white),
+          : Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: ElevatedButton(
+                    onPressed: _showCreateUserDialog,
+                    child: const Text('＋ ユーザー追加'),
                   ),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('UID: ${item['uid']}', style: const TextStyle(color: Colors.white)),
-                      Text('メール: ${item['email']}', style: const TextStyle(color: Colors.white)),
-                    ],
+                ),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: data.length,
+                    itemBuilder: (context, index) {
+                      final item = data[index];
+                      return ListTile(
+                        leading: Text('${index + 1}位', style: const TextStyle(color: Colors.white)),
+                        title: Text(item['displayName'], style: const TextStyle(color: Colors.white)),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('UID: ${item['uid']}', style: const TextStyle(color: Colors.white)),
+                            Text('メール: ${item['email']}', style: const TextStyle(color: Colors.white)),
+                          ],
+                        ),
+                        trailing: ElevatedButton(
+                          onPressed: () => _showEditDialog(item),
+                          child: const Text('編集'),
+                        ),
+                      );
+                    },
                   ),
-                  trailing: ElevatedButton(
-                    onPressed: () => _showEditDialog(item),
-                    child: const Text('編集'),
-                  ),
-                );
-              },
+                ),
+              ],
             ),
     );
   }

@@ -22,7 +22,8 @@ dependencies:
   cupertino_icons: ^1.0.6
   image_picker: ^1.0.4
   firebase_storage: ^11.6.5
-  
+  http: ^0.13.6  # ← ★追加：Cloud Functions呼び出し用
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
