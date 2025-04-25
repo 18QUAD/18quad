@@ -62,11 +62,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
       newIconUrl = await ref.getDownloadURL();
     }
 
-    await FirebaseFirestore.instance.collection('users').doc(uid).update({
+    // ✅ Firestoreへmerge保存（ここが今回の修正）
+    await FirebaseFirestore.instance.collection('users').doc(uid).set({
       'displayName': name,
       'iconUrl': newIconUrl,
-    });
+      'email': user.email,
+    }, SetOptions(merge: true));
 
+    // FirebaseAuthにも反映
     await user.updateDisplayName(name);
     if (newIconUrl != null) {
       await user.updatePhotoURL(newIconUrl);

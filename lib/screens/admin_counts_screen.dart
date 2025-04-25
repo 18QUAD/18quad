@@ -32,8 +32,13 @@ class _AdminCountsScreenState extends State<AdminCountsScreen> {
       final count = doc.data()['count'] ?? 0;
 
       final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-      final displayName = userDoc.data()?['displayName'] ?? '(不明)';
-      final email = userDoc.data()?['email'] ?? '';
+      final userData = userDoc.data() ?? {};
+
+      final displayName = (userData['displayName'] ?? '').toString().isEmpty
+          ? '(名前未設定)'
+          : userData['displayName'].toString();
+
+      final email = userData['email']?.toString() ?? '(emailなし)';
 
       result.add({
         'uid': uid,
@@ -45,10 +50,74 @@ class _AdminCountsScreenState extends State<AdminCountsScreen> {
 
     result.sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
 
-    setState(() {
-      data = result;
-      isLoading = false;
-    });
+    if (mounted) {
+      setState(() {
+        data = result;
+        isLoading = false;
+      });
+    }
+  }
+
+  void _showEditDialog(Map<String, dynamic> userData) {
+    final _nameController = TextEditingController(text: userData['displayName']);
+    final _emailController = TextEditingController(text: userData['email']);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text(
+          'ユーザー編集',
+          style: TextStyle(color: Colors.black),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _nameController,
+              style: const TextStyle(color: Colors.black),
+              decoration: const InputDecoration(
+                labelText: '表示名',
+                labelStyle: TextStyle(color: Colors.black),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _emailController,
+              style: const TextStyle(color: Colors.black),
+              decoration: const InputDecoration(
+                labelText: 'メールアドレス',
+                labelStyle: TextStyle(color: Colors.black),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('キャンセル'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final uid = userData['uid'];
+              final newName = _nameController.text;
+              final newEmail = _emailController.text;
+
+              await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(uid)
+                  .set({
+                'displayName': newName,
+                'email': newEmail,
+              }, SetOptions(merge: true));
+
+              Navigator.pop(context);
+              await _loadData();
+            },
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -65,10 +134,22 @@ class _AdminCountsScreenState extends State<AdminCountsScreen> {
               itemBuilder: (context, index) {
                 final item = data[index];
                 return ListTile(
-                  leading: Text('${index + 1}位'),
-                  title: Text(item['displayName']),
-                  subtitle: Text('UID: ${item['uid']}'),
-                  trailing: Text('${item['count']}'),
+                  leading: Text('${index + 1}位', style: const TextStyle(color: Colors.white)),
+                  title: Text(
+                    item['displayName']?.toString() ?? '(名前未設定)',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('UID: ${item['uid']}', style: const TextStyle(color: Colors.white)),
+                      Text('メール: ${item['email']}', style: const TextStyle(color: Colors.white)),
+                    ],
+                  ),
+                  trailing: ElevatedButton(
+                    onPressed: () => _showEditDialog(item),
+                    child: const Text('編集'),
+                  ),
                 );
               },
             ),
