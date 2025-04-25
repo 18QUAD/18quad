@@ -1,108 +1,77 @@
-// lib/screens/admin_counts_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
 import '../widgets/app_scaffold.dart';
 
-class AdminCountsScreen extends StatelessWidget {
+class AdminCountsScreen extends StatefulWidget {
   const AdminCountsScreen({super.key});
 
-  final String adminEmail = 'admin@example.com'; // ← あなたの管理者メールに変更
+  @override
+  State<AdminCountsScreen> createState() => _AdminCountsScreenState();
+}
+
+class _AdminCountsScreenState extends State<AdminCountsScreen> {
+  List<Map<String, dynamic>> data = [];
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    final countsSnapshot =
+        await FirebaseFirestore.instance.collection('counts').get();
+
+    List<Map<String, dynamic>> result = [];
+
+    for (var doc in countsSnapshot.docs) {
+      final uid = doc.id;
+      final count = doc.data()['count'] ?? 0;
+
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final displayName = userDoc.data()?['displayName'] ?? '(不明)';
+      final email = userDoc.data()?['email'] ?? '';
+
+      result.add({
+        'uid': uid,
+        'displayName': displayName,
+        'email': email,
+        'count': count,
+      });
+    }
+
+    result.sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
+
+    setState(() {
+      data = result;
+      isLoading = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final currentUser = FirebaseAuth.instance.currentUser;
-
-    if (currentUser == null || currentUser.email != adminEmail) {
-      return AppScaffold(
-        title: 'アクセス拒否',
-        child: const Center(
-          child: Text(
-            'この画面にアクセスする権限がありません',
-            style: TextStyle(color: Colors.redAccent),
-          ),
-        ),
-      );
-    }
-
-    final countsRef = FirebaseFirestore.instance.collection('counts');
-    final usersRef = FirebaseFirestore.instance.collection('users');
+    final user = FirebaseAuth.instance.currentUser;
 
     return AppScaffold(
-      title: '全ユーザー連打数一覧',
-      child: StreamBuilder<QuerySnapshot>(
-        stream: countsRef.orderBy('count', descending: true).snapshots(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return const Center(
-              child: CircularProgressIndicator(color: Colors.pink),
-            );
-          }
-
-          final countDocs = snapshot.data!.docs;
-
-          return SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              headingRowColor: MaterialStateColor.resolveWith(
-                  (states) => Colors.pink.shade700),
-              dataRowColor: MaterialStateColor.resolveWith(
-                  (states) => Colors.grey.shade900),
-              headingTextStyle:
-                  const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-              dataTextStyle: const TextStyle(color: Colors.white),
-              columns: const [
-                DataColumn(label: Text('順位')),
-                DataColumn(label: Text('名前')),
-                DataColumn(label: Text('カウント')),
-                DataColumn(label: Text('e-mail')),
-                DataColumn(label: Text('UID')),
-                DataColumn(label: Text('リセット')),
-              ],
-              rows: List<DataRow>.generate(countDocs.length, (index) {
-                final countDoc = countDocs[index];
-                final uid = countDoc.id;
-                final count = countDoc['count'] ?? 0;
-                final rank = index + 1;
-
-                return DataRow(cells: [
-                  DataCell(Text('$rank')),
-                  DataCell(FutureBuilder<DocumentSnapshot>(
-                    future: usersRef.doc(uid).get(),
-                    builder: (context, userSnap) {
-                      final data = userSnap.data?.data() as Map<String, dynamic>?;
-                      final name = data?['name'] ?? '不明';
-                      return Text(name);
-                    },
-                  )),
-                  DataCell(Text('$count')),
-                  DataCell(FutureBuilder<DocumentSnapshot>(
-                    future: usersRef.doc(uid).get(),
-                    builder: (context, userSnap) {
-                      final data = userSnap.data?.data() as Map<String, dynamic>?;
-                      final email = data?['email'] ?? '不明';
-                      return Text(email);
-                    },
-                  )),
-                  DataCell(Text(uid.substring(0, 6) + '...')),
-                  DataCell(IconButton(
-                    icon: const Icon(Icons.restart_alt, color: Colors.orangeAccent),
-                    onPressed: () async {
-                      await countsRef.doc(uid).set({'count': 0});
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('「$uid」のカウントをリセットしました'),
-                          backgroundColor: Colors.pink,
-                        ),
-                      );
-                    },
-                  )),
-                ]);
-              }),
+      title: 'ユーザー管理',
+      user: user,
+      child: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView.builder(
+              itemCount: data.length,
+              itemBuilder: (context, index) {
+                final item = data[index];
+                return ListTile(
+                  leading: Text('${index + 1}位'),
+                  title: Text(item['displayName']),
+                  subtitle: Text('UID: ${item['uid']}'),
+                  trailing: Text('${item['count']}'),
+                );
+              },
             ),
-          );
-        },
-      ),
     );
   }
 }

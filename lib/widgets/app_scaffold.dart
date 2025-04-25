@@ -78,6 +78,10 @@ class AppScaffold extends StatelessWidget {
               title: const Text('ランキング'),
               onTap: () => Navigator.pushNamed(context, '/ranking'),
             ),
+            ListTile(
+              title: const Text('ユーザー管理'),
+              onTap: () => Navigator.pushNamed(context, '/admin'),
+            ),
           ],
         ),
       ),
