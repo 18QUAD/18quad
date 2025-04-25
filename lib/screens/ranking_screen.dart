@@ -64,9 +64,11 @@ class _RankingScreenState extends State<RankingScreen> {
   @override
   Widget build(BuildContext context) {
     final currentUid = _auth.currentUser?.uid;
+    final user = _auth.currentUser;
 
     return AppScaffold(
       title: 'ランキング',
+      user: user,
       child: isLoading
           ? const Center(child: CircularProgressIndicator())
           : ListView.builder(
