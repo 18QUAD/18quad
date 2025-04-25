@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../widgets/app_drawer.dart';
+
+import '../widgets/app_scaffold.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -21,8 +22,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadCount() async {
-    final uid = FirebaseAuth.instance.currentUser!.uid;
-    final doc = await FirebaseFirestore.instance.collection('counts').doc(uid).get();
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    final doc =
+        await FirebaseFirestore.instance.collection('counts').doc(uid).get();
     setState(() {
       _count = doc.data()?['count'] ?? 0;
       _isLoading = false;
@@ -30,19 +34,24 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _incrementCount() async {
-    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
     setState(() {
       _count++;
     });
-    await FirebaseFirestore.instance.collection('counts').doc(uid).set({'count': _count});
+
+    await FirebaseFirestore.instance
+        .collection('counts')
+        .doc(uid)
+        .set({'count': _count});
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('連打')),
-      drawer: const AppDrawer(),
-      body: Center(
+    return AppScaffold(
+      title: '連打チャレンジ',
+      child: Center(
         child: _isLoading
             ? const CircularProgressIndicator()
             : Column(
