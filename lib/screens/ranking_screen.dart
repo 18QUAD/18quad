@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
+
+import '../services/auth_service.dart';
 import '../widgets/app_scaffold.dart';
 
 class RankingScreen extends StatefulWidget {
@@ -39,12 +42,12 @@ class _RankingScreenState extends State<RankingScreen> {
             .get();
 
         final displayName = userDoc.data()?['displayName'] ?? '(不明)';
-        final iconId = userDoc.data()?['iconId'] ?? 0;
+        final iconUrl = userDoc.data()?['iconUrl'] ?? null;
 
         data.add({
           'uid': uid,
           'displayName': displayName,
-          'iconId': iconId,
+          'iconUrl': iconUrl,
           'count': count,
         });
       }
@@ -63,17 +66,18 @@ class _RankingScreenState extends State<RankingScreen> {
   @override
   Widget build(BuildContext context) {
     final currentUid = _auth.currentUser?.uid;
+    final user = context.watch<AuthService>().currentUser;
 
     return AppScaffold(
-  drawer: const AppDrawer(),
       title: 'ランキング',
+      user: user,
       child: isLoading
           ? const Center(child: CircularProgressIndicator())
           : ListView.builder(
               itemCount: rankings.length,
               itemBuilder: (context, index) {
-                final user = rankings[index];
-                final isCurrent = user['uid'] == currentUid;
+                final userData = rankings[index];
+                final isCurrent = userData['uid'] == currentUid;
 
                 return Container(
                   color: isCurrent ? Colors.blue.shade900 : Colors.transparent,
@@ -86,20 +90,22 @@ class _RankingScreenState extends State<RankingScreen> {
                       ),
                       const SizedBox(width: 12),
                       CircleAvatar(
-                        backgroundImage:
-                            AssetImage('assets/icons/icon_${user['iconId']}.png'),
+                        backgroundImage: userData['iconUrl'] != null
+                            ? NetworkImage(userData['iconUrl'])
+                            : const AssetImage('assets/icons/default.png')
+                                as ImageProvider,
                         radius: 16,
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          user['displayName'],
+                          userData['displayName'],
                           style: const TextStyle(fontSize: 16),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       Text(
-                        '${user['count']}',
+                        '${userData['count']}',
                         style: const TextStyle(fontSize: 16),
                       ),
                     ],
