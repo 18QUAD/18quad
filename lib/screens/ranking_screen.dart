@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:provider/provider.dart';
 
-import '../services/auth_service.dart';
 import '../widgets/app_scaffold.dart';
 
 class RankingScreen extends StatefulWidget {
@@ -66,11 +64,9 @@ class _RankingScreenState extends State<RankingScreen> {
   @override
   Widget build(BuildContext context) {
     final currentUid = _auth.currentUser?.uid;
-    final user = context.watch<AuthService>().currentUser;
 
     return AppScaffold(
       title: 'ランキング',
-      user: user,
       child: isLoading
           ? const Center(child: CircularProgressIndicator())
           : ListView.builder(
