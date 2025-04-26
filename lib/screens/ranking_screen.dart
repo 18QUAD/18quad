@@ -1,116 +1,54 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 import '../widgets/app_scaffold.dart';
+import '../services/firestore_service.dart';
+import '../theme/colors.dart';
+import '../theme/text_styles.dart';
 
-class RankingScreen extends StatefulWidget {
+class RankingScreen extends StatelessWidget {
   const RankingScreen({super.key});
 
   @override
-  State<RankingScreen> createState() => _RankingScreenState();
-}
-
-class _RankingScreenState extends State<RankingScreen> {
-  final _auth = FirebaseAuth.instance;
-  List<Map<String, dynamic>> rankings = [];
-  bool isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadRankings();
-  }
-
-  Future<void> _loadRankings() async {
-    try {
-      final countSnapshot = await FirebaseFirestore.instance
-          .collection('counts')
-          .get();
-
-      List<Map<String, dynamic>> data = [];
-
-      for (var doc in countSnapshot.docs) {
-        final uid = doc.id;
-        final count = doc.data()['count'] ?? 0;
-
-        final userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(uid)
-            .get();
-
-        final displayName = userDoc.data()?['displayName'] ?? '(不明)';
-        final iconUrl = userDoc.data()?['iconUrl'] ?? null;
-
-        data.add({
-          'uid': uid,
-          'displayName': displayName,
-          'iconUrl': iconUrl,
-          'count': count,
-        });
-      }
-
-      data.sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
-
-      setState(() {
-        rankings = data;
-        isLoading = false;
-      });
-    } catch (e) {
-      print('ランキング取得失敗: $e');
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final currentUid = _auth.currentUser?.uid;
-    final user = _auth.currentUser;
-
     return AppScaffold(
       title: 'ランキング',
-      user: user,
-      child: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView.builder(
-              itemCount: rankings.length,
-              itemBuilder: (context, index) {
-                final userData = rankings[index];
-                final isCurrent = userData['uid'] == currentUid;
-
-                return Container(
-                  color: isCurrent ? Colors.blue.shade900 : Colors.transparent,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Row(
-                    children: [
-                      Text(
-                        '${index + 1}位',
-                        style: const TextStyle(fontSize: 16),
-                      ),
-                      const SizedBox(width: 12),
-                      CircleAvatar(
-                        backgroundImage: userData['iconUrl'] != null
-                            ? NetworkImage(userData['iconUrl'])
-                            : const AssetImage('assets/icons/default.png')
-                                as ImageProvider,
-                        radius: 16,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          userData['displayName'],
-                          style: const TextStyle(fontSize: 16),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      Text(
-                        '${userData['count']}',
-                        style: const TextStyle(fontSize: 16),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
+      child: StreamBuilder<QuerySnapshot>(
+        stream: FirestoreService.getRankingStream(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final docs = snapshot.data!.docs;
+          return ListView.separated(
+            itemCount: docs.length,
+            separatorBuilder: (context, index) => const Divider(),
+            itemBuilder: (context, index) {
+              final doc = docs[index];
+              final count = doc['count'] ?? 0;
+              final rank = index + 1;
+              return ListTile(
+                leading: Text(
+                  '$rank位',
+                  style: AppTextStyles.body.copyWith(fontWeight: FontWeight.bold),
+                ),
+                title: FutureBuilder<Map<String, dynamic>?>(
+                  future: FirestoreService.getUserData(doc.id),
+                  builder: (context, userSnapshot) {
+                    if (userSnapshot.connectionState == ConnectionState.waiting) {
+                      return const Text('読み込み中...');
+                    }
+                    final userData = userSnapshot.data;
+                    final displayName = userData?['displayName'] ?? '名無し';
+                    return Text(displayName);
+                  },
+                ),
+                trailing: Text('$count回'),
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }

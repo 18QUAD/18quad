@@ -1,10 +1,12 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
 
 import '../widgets/app_scaffold.dart';
+import '../theme/colors.dart';
+import '../theme/text_styles.dart';
 
 class AdminCountsScreen extends StatefulWidget {
   const AdminCountsScreen({super.key});
@@ -14,8 +16,7 @@ class AdminCountsScreen extends StatefulWidget {
 }
 
 class _AdminCountsScreenState extends State<AdminCountsScreen> {
-  List<Map<String, dynamic>> data = [];
-  bool isLoading = true;
+  List<DocumentSnapshot> _users = [];
 
   @override
   void initState() {
@@ -24,45 +25,57 @@ class _AdminCountsScreenState extends State<AdminCountsScreen> {
   }
 
   Future<void> _loadData() async {
-    final countsSnapshot = await FirebaseFirestore.instance.collection('counts').get();
-    List<Map<String, dynamic>> result = [];
-
-    for (var doc in countsSnapshot.docs) {
-      final uid = doc.id;
-      final count = doc.data()['count'] ?? 0;
-
-      final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-      final userData = userDoc.data() ?? {};
-
-      final displayName = (userData['displayName'] ?? '').toString().isEmpty
-          ? '(名前未設定)'
-          : userData['displayName'].toString();
-      final email = userData['email']?.toString() ?? '(emailなし)';
-
-      result.add({
-        'uid': uid,
-        'displayName': displayName,
-        'email': email,
-        'count': count,
-      });
-    }
-
-    result.sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
-
-    if (mounted) {
-      setState(() {
-        data = result;
-        isLoading = false;
-      });
-    }
+    final snapshot = await FirebaseFirestore.instance.collection('counts').orderBy('count', descending: true).get();
+    setState(() {
+      _users = snapshot.docs;
+    });
   }
 
-  void _showCreateUserDialog() {
+  Future<void> _resetCount(String uid) async {
+    await FirebaseFirestore.instance.collection('counts').doc(uid).update({'count': 0});
+    _loadData();
+  }
+
+  Future<void> _deleteUser(String uid) async {
+    await FirebaseFirestore.instance.collection('users').doc(uid).delete();
+    await FirebaseFirestore.instance.collection('counts').doc(uid).delete();
+    _loadData();
+  }
+
+  Future<void> _editUser(String uid, String currentName) async {
+    final controller = TextEditingController(text: currentName);
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('ユーザー名を編集'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(labelText: '新しい表示名'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('キャンセル'),
+          ),
+          TextButton(
+            onPressed: () async {
+              await FirebaseFirestore.instance.collection('users').doc(uid).update({'displayName': controller.text});
+              if (mounted) Navigator.pop(context);
+              _loadData();
+            },
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _addUser() async {
     final emailController = TextEditingController();
     final passwordController = TextEditingController();
     final nameController = TextEditingController();
 
-    showDialog(
+    await showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('新規ユーザー追加'),
@@ -75,8 +88,8 @@ class _AdminCountsScreenState extends State<AdminCountsScreen> {
             ),
             TextField(
               controller: passwordController,
-              obscureText: true,
               decoration: const InputDecoration(labelText: 'パスワード'),
+              obscureText: true,
             ),
             TextField(
               controller: nameController,
@@ -89,8 +102,10 @@ class _AdminCountsScreenState extends State<AdminCountsScreen> {
             onPressed: () => Navigator.pop(context),
             child: const Text('キャンセル'),
           ),
-          ElevatedButton(
+          TextButton(
             onPressed: () async {
+              print('★ ユーザー追加ボタン押された！'); // 🔥 ログ追加
+
               Navigator.pop(context);
               await _createUserFromFunction(
                 emailController.text.trim(),
@@ -109,11 +124,14 @@ class _AdminCountsScreenState extends State<AdminCountsScreen> {
     final user = FirebaseAuth.instance.currentUser;
     final idToken = await user?.getIdToken();
 
-    const functionUrl = 'https://us-central1-<your-project-id>.cloudfunctions.net/createUser'; // ← 差し替え必要！
+    const functionUrl = 'https://us-central1-quad-2c91f.cloudfunctions.net/createUser';
 
     try {
+      final uri = Uri.parse(functionUrl);
+      print('★ リクエスト先URI: $uri'); // 🔥 ログ追加
+
       final response = await http.post(
-        Uri.parse(functionUrl),
+        uri,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $idToken',
@@ -136,117 +154,63 @@ class _AdminCountsScreenState extends State<AdminCountsScreen> {
         );
       }
     } catch (e) {
+      print('★ 通信エラー発生: $e'); // 🔥 ログ追加
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('通信エラー: $e')),
       );
     }
   }
 
-  void _showEditDialog(Map<String, dynamic> userData) {
-    final nameController = TextEditingController(text: userData['displayName']);
-    final emailController = TextEditingController(text: userData['email']);
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text(
-          'ユーザー編集',
-          style: TextStyle(color: Colors.black),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              style: const TextStyle(color: Colors.black),
-              decoration: const InputDecoration(
-                labelText: '表示名',
-                labelStyle: TextStyle(color: Colors.black),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: emailController,
-              style: const TextStyle(color: Colors.black),
-              decoration: const InputDecoration(
-                labelText: 'メールアドレス',
-                labelStyle: TextStyle(color: Colors.black),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('キャンセル'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final uid = userData['uid'];
-              final newName = nameController.text;
-              final newEmail = emailController.text;
-
-              await FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(uid)
-                  .set({
-                'displayName': newName,
-                'email': newEmail,
-              }, SetOptions(merge: true));
-
-              Navigator.pop(context);
-              await _loadData();
-            },
-            child: const Text('保存'),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-
     return AppScaffold(
       title: 'ユーザー管理',
-      user: user,
-      child: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: ElevatedButton(
-                    onPressed: _showCreateUserDialog,
-                    child: const Text('＋ ユーザー追加'),
-                  ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _addUser,
+        child: const Icon(Icons.add),
+      ),
+      child: ListView.builder(
+        itemCount: _users.length,
+        itemBuilder: (context, index) {
+          final doc = _users[index];
+          final uid = doc.id;
+          final count = doc['count'] ?? 0;
+
+          return FutureBuilder<DocumentSnapshot>(
+            future: FirebaseFirestore.instance.collection('users').doc(uid).get(),
+            builder: (context, userSnapshot) {
+              if (!userSnapshot.hasData) {
+                return const ListTile(title: Text('読み込み中...'));
+              }
+              final userData = userSnapshot.data?.data() as Map<String, dynamic>?;
+              final displayName = userData?['displayName'] ?? '名無し';
+              final email = userData?['email'] ?? '不明';
+
+              return ListTile(
+                title: Text('$displayName', style: AppTextStyles.body),
+                subtitle: Text('$email\nUID: ${uid.substring(0, 6)}...', style: AppTextStyles.label),
+                isThreeLine: true,
+                trailing: PopupMenuButton<String>(
+                  onSelected: (value) async {
+                    if (value == 'reset') {
+                      await _resetCount(uid);
+                    } else if (value == 'edit') {
+                      await _editUser(uid, displayName);
+                    } else if (value == 'delete') {
+                      await _deleteUser(uid);
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(value: 'reset', child: Text('カウントリセット')),
+                    const PopupMenuItem(value: 'edit', child: Text('ユーザー編集')),
+                    const PopupMenuItem(value: 'delete', child: Text('ユーザー削除')),
+                  ],
                 ),
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: data.length,
-                    itemBuilder: (context, index) {
-                      final item = data[index];
-                      return ListTile(
-                        leading: Text('${index + 1}位', style: const TextStyle(color: Colors.white)),
-                        title: Text(item['displayName'], style: const TextStyle(color: Colors.white)),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('UID: ${item['uid']}', style: const TextStyle(color: Colors.white)),
-                            Text('メール: ${item['email']}', style: const TextStyle(color: Colors.white)),
-                          ],
-                        ),
-                        trailing: ElevatedButton(
-                          onPressed: () => _showEditDialog(item),
-                          child: const Text('編集'),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }

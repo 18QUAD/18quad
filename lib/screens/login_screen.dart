@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
 import '../widgets/app_scaffold.dart';
+import '../theme/colors.dart';
+import '../theme/text_styles.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -45,19 +46,30 @@ class _LoginScreenState extends State<LoginScreen> {
           children: [
             TextField(
               controller: _emailController,
-              decoration: const InputDecoration(labelText: 'メールアドレス'),
+              decoration: const InputDecoration(
+                labelText: 'メールアドレス',
+              ),
+              style: AppTextStyles.body,
             ),
             const SizedBox(height: 16),
             TextField(
               controller: _passwordController,
               obscureText: true,
-              decoration: const InputDecoration(labelText: 'パスワード'),
+              decoration: const InputDecoration(
+                labelText: 'パスワード',
+              ),
+              style: AppTextStyles.body,
             ),
             const SizedBox(height: 32),
             _isLoading
                 ? const CircularProgressIndicator()
                 : ElevatedButton(
                     onPressed: _login,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.button,
+                      foregroundColor: AppColors.textPrimary,
+                      textStyle: AppTextStyles.button,
+                    ),
                     child: const Text('ログイン'),
                   ),
             const SizedBox(height: 16),

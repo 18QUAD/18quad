@@ -5,12 +5,14 @@ class AppScaffold extends StatelessWidget {
   final String title;
   final Widget child;
   final User? user;
+  final Widget? floatingActionButton; // ← ★追加！
 
   const AppScaffold({
     super.key,
     required this.title,
     required this.child,
     this.user,
+    this.floatingActionButton, // ← ★追加！
   });
 
   @override
@@ -86,6 +88,7 @@ class AppScaffold extends StatelessWidget {
         ),
       ),
       body: child,
+      floatingActionButton: floatingActionButton, // ← ★追加！
     );
   }
 }

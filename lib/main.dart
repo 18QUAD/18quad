@@ -13,6 +13,8 @@ import 'screens/admin_counts_screen.dart';
 import 'screens/title_screen.dart';
 import 'screens/ranking_screen.dart';
 
+import 'theme/app_theme.dart'; // ★ 追加！テーマ読み込み
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
@@ -31,10 +33,7 @@ class MyApp extends StatelessWidget {
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         title: '18QUAD',
-        theme: ThemeData.dark().copyWith(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.pink),
-          useMaterial3: true,
-        ),
+        theme: AppTheme.light, // ★ ここで3本柱のテーマを適用！
         initialRoute: '/',
         routes: {
           '/': (context) => const TitleScreen(),
