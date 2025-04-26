@@ -1,9 +1,5 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:http/http.dart' as http;
-
 import '../widgets/app_scaffold.dart';
 import '../theme/colors.dart';
 import '../theme/text_styles.dart';
@@ -70,105 +66,10 @@ class _AdminCountsScreenState extends State<AdminCountsScreen> {
     );
   }
 
-  Future<void> _addUser() async {
-    final emailController = TextEditingController();
-    final passwordController = TextEditingController();
-    final nameController = TextEditingController();
-
-    await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('新規ユーザー追加'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: emailController,
-              decoration: const InputDecoration(labelText: 'メールアドレス'),
-            ),
-            TextField(
-              controller: passwordController,
-              decoration: const InputDecoration(labelText: 'パスワード'),
-              obscureText: true,
-            ),
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(labelText: '表示名'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('キャンセル'),
-          ),
-          TextButton(
-            onPressed: () async {
-              print('★ ユーザー追加ボタン押された！'); // 🔥 ログ追加
-
-              Navigator.pop(context);
-              await _createUserFromFunction(
-                emailController.text.trim(),
-                passwordController.text.trim(),
-                nameController.text.trim(),
-              );
-            },
-            child: const Text('作成'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _createUserFromFunction(String email, String password, String displayName) async {
-    final user = FirebaseAuth.instance.currentUser;
-    final idToken = await user?.getIdToken();
-
-    const functionUrl = 'https://us-central1-quad-2c91f.cloudfunctions.net/createUser';
-
-    try {
-      final uri = Uri.parse(functionUrl);
-      print('★ リクエスト先URI: $uri'); // 🔥 ログ追加
-
-      final response = await http.post(
-        uri,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $idToken',
-        },
-        body: jsonEncode({
-          'email': email,
-          'password': password,
-          'displayName': displayName,
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('ユーザーを作成しました')),
-        );
-        await _loadData();
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('作成失敗: ${response.body}')),
-        );
-      }
-    } catch (e) {
-      print('★ 通信エラー発生: $e'); // 🔥 ログ追加
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('通信エラー: $e')),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
       title: 'ユーザー管理',
-      floatingActionButton: FloatingActionButton(
-        onPressed: _addUser,
-        child: const Icon(Icons.add),
-      ),
       child: ListView.builder(
         itemCount: _users.length,
         itemBuilder: (context, index) {
@@ -185,8 +86,14 @@ class _AdminCountsScreenState extends State<AdminCountsScreen> {
               final userData = userSnapshot.data?.data() as Map<String, dynamic>?;
               final displayName = userData?['displayName'] ?? '名無し';
               final email = userData?['email'] ?? '不明';
+              final iconUrl = userData?['iconUrl'];
 
               return ListTile(
+                leading: CircleAvatar(
+                  backgroundImage: iconUrl != null
+                      ? NetworkImage(iconUrl)
+                      : const AssetImage('assets/icons/default.png') as ImageProvider,
+                ),
                 title: Text('$displayName', style: AppTextStyles.body),
                 subtitle: Text('$email\nUID: ${uid.substring(0, 6)}...', style: AppTextStyles.label),
                 isThreeLine: true,

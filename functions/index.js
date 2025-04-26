@@ -1,19 +1,23 @@
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
-const cors = require('cors')({ origin: true }); // ★ 追加！
+const cors = require('cors')({ origin: true });
 admin.initializeApp();
 
 exports.createUser = functions.https.onRequest((req, res) => {
-  cors(req, res, async () => { // ★ CORSラップする
+  cors(req, res, async () => {
     try {
-      const { email, password, displayName } = req.body;
+      const { email, password, displayName, iconUrl } = req.body; // ★ iconUrlも受け取る
 
       if (!email || !password || !displayName) {
         res.status(400).send('Missing required fields: email, password, displayName');
         return;
       }
 
-      // Firebase Authenticationにユーザー登録
+      const safeIconUrl = iconUrl && iconUrl.trim() !== '' 
+        ? iconUrl 
+        : 'https://example.com/default-icon.png'; // ★ 空だったらデフォルト設定
+
+      // Firebase Authentication にユーザー登録（photoURL設定しない）
       const userRecord = await admin.auth().createUser({
         email: email,
         password: password,
@@ -24,10 +28,11 @@ exports.createUser = functions.https.onRequest((req, res) => {
       await admin.firestore().collection('users').doc(userRecord.uid).set({
         displayName: displayName,
         email: email,
+        iconUrl: safeIconUrl, // ★ ここに保存
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
 
-      // ★ ここを追加 → countsコレクションにも初期count=0を登録
+      // countsコレクションにも初期count=0登録
       await admin.firestore().collection('counts').doc(userRecord.uid).set({
         count: 0,
       });

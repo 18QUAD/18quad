@@ -1,8 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
-
-import '../widgets/app_drawer.dart';
-import '../services/firestore_service.dart';
-import '../services/auth_service.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../widgets/app_scaffold.dart';
 import '../theme/colors.dart';
 import '../theme/text_styles.dart';
 
@@ -14,56 +16,76 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  final _nameController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _isLoading = true;
+  final _displayNameController = TextEditingController();
+  bool _isLoading = false;
+  String? _error;
 
-  @override
-  void initState() {
-    super.initState();
-    _loadUserInfo();
-  }
+  File? _selectedImage;
+  String? _uploadedIconUrl;
 
-  Future<void> _loadUserInfo() async {
-    setState(() => _isLoading = true);
-    try {
-      final userData = await FirestoreService.getUserData(FirestoreService.currentUid);
-      if (userData != null) {
-        _nameController.text = userData['displayName'] ?? '';
-      }
-    } catch (e) {
-      print('ユーザー情報読み込みエラー: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('ユーザー情報の取得に失敗しました')),
-      );
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+  final picker = ImagePicker();
+
+  Future<void> _pickImage() async {
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      setState(() {
+        _selectedImage = File(pickedFile.path);
+      });
     }
   }
 
-  Future<void> _saveSettings() async {
-    final name = _nameController.text.trim();
-    final password = _passwordController.text.trim();
+  Future<void> _uploadImage() async {
+    if (_selectedImage == null) return;
 
-    setState(() => _isLoading = true);
+    final storageRef = FirebaseStorage.instance
+        .ref()
+        .child('user_icons/${DateTime.now().millisecondsSinceEpoch}.png');
+    await storageRef.putFile(_selectedImage!);
+    _uploadedIconUrl = await storageRef.getDownloadURL();
+  }
+
+  Future<void> _updateProfile() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
     try {
-      if (name.isNotEmpty) {
-        await FirestoreService.updateDisplayName(FirestoreService.currentUid, name);
+      if (_selectedImage != null) {
+        await _uploadImage();
       }
-      if (password.isNotEmpty) {
-        await AuthService.updatePassword(password);
+
+      if (_displayNameController.text.isNotEmpty) {
+        await user.updateDisplayName(_displayNameController.text.trim());
       }
+      if (_passwordController.text.isNotEmpty) {
+        await user.updatePassword(_passwordController.text.trim());
+      }
+
+      final userDoc = FirebaseFirestore.instance.collection('users').doc(user.uid);
+
+      final updateData = <String, dynamic>{};
+
+      if (_displayNameController.text.isNotEmpty) {
+        updateData['displayName'] = _displayNameController.text.trim();
+      }
+      if (_uploadedIconUrl != null) {
+        updateData['iconUrl'] = _uploadedIconUrl;
+      }
+
+      if (updateData.isNotEmpty) {
+        await userDoc.update(updateData);
+      }
+
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('保存しました')),
-        );
         Navigator.pop(context);
       }
     } catch (e) {
-      print('保存エラー: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('保存に失敗しました')),
-      );
+      setState(() => _error = e.toString());
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -71,34 +93,45 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('ユーザー設定')),
-      drawer: const AppDrawer(),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  TextField(
-                    controller: _nameController,
-                    decoration: const InputDecoration(
-                      labelText: '表示名',
-                    ),
-                    style: AppTextStyles.body,
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _passwordController,
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                      labelText: '新しいパスワード（空欄なら変更なし）',
-                    ),
-                    style: AppTextStyles.body,
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: _saveSettings,
+    return AppScaffold(
+      title: '設定',
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: ListView(
+          children: [
+            GestureDetector(
+              onTap: _pickImage,
+              child: CircleAvatar(
+                radius: 50,
+                backgroundImage: _selectedImage != null
+                    ? FileImage(_selectedImage!)
+                    : const AssetImage('assets/icons/default.png') as ImageProvider,
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _displayNameController,
+              decoration: const InputDecoration(labelText: '新しい表示名'),
+              style: AppTextStyles.body,
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _passwordController,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: '新しいパスワード'),
+              style: AppTextStyles.body,
+            ),
+            const SizedBox(height: 24),
+            if (_error != null)
+              Text(
+                _error!,
+                style: const TextStyle(color: AppColors.error),
+              ),
+            const SizedBox(height: 16),
+            _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : ElevatedButton(
+                    onPressed: _updateProfile,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.button,
                       foregroundColor: AppColors.textPrimary,
@@ -106,9 +139,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     child: const Text('保存'),
                   ),
-                ],
-              ),
-            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -9,10 +9,11 @@ class FunctionsService {
     required String email,
     required String password,
     required String displayName,
+    String? iconUrl, // ★ 追加：アイコンURLも渡せる
   }) async {
     try {
       final uri = Uri.parse(_functionUrl);
-      print('★ リクエスト先URI: $uri'); // 🔥 ログを仕込んだ！
+      print('★ リクエスト先URI: $uri'); // （デバッグ用ログ）
 
       final response = await http.post(
         uri,
@@ -21,6 +22,7 @@ class FunctionsService {
           'email': email,
           'password': password,
           'displayName': displayName,
+          'iconUrl': iconUrl ?? '', // ★ 空なら空文字で送る
         }),
       );
 

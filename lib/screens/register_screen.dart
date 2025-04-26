@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
-
-import '../services/auth_service.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import '../services/functions_service.dart';
 import '../widgets/app_scaffold.dart';
 import '../theme/colors.dart';
 import '../theme/text_styles.dart';
@@ -19,6 +21,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _isLoading = false;
   String? _error;
 
+  File? _selectedImage; // ★ 選択された画像ファイル
+  String? _uploadedIconUrl; // ★ アップロード後のURL
+
+  final picker = ImagePicker();
+
+  Future<void> _pickImage() async {
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      setState(() {
+        _selectedImage = File(pickedFile.path);
+      });
+    }
+  }
+
+  Future<void> _uploadImage() async {
+    if (_selectedImage == null) return;
+
+    final storageRef = FirebaseStorage.instance
+        .ref()
+        .child('user_icons/${DateTime.now().millisecondsSinceEpoch}.png');
+    await storageRef.putFile(_selectedImage!);
+    _uploadedIconUrl = await storageRef.getDownloadURL();
+  }
+
   Future<void> _register() async {
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty || _displayNameController.text.isEmpty) {
       setState(() => _error = '全てのフィールドを入力してください');
@@ -31,10 +57,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
 
     try {
-      await AuthService.signUp(
+      await _uploadImage(); // ★ まずアイコンをアップロード！
+
+      await FunctionsService.createUser(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
         displayName: _displayNameController.text.trim(),
+        iconUrl: _uploadedIconUrl, // ★ 取得できたURLを渡す！
       );
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/home');
@@ -54,6 +83,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
         padding: const EdgeInsets.all(16),
         child: ListView(
           children: [
+            GestureDetector(
+              onTap: _pickImage,
+              child: CircleAvatar(
+                radius: 50,
+                backgroundImage: _selectedImage != null
+                    ? FileImage(_selectedImage!)
+                    : const AssetImage('assets/icons/default.png') as ImageProvider,
+              ),
+            ),
+            const SizedBox(height: 16),
             TextField(
               controller: _emailController,
               decoration: const InputDecoration(labelText: 'メールアドレス'),
