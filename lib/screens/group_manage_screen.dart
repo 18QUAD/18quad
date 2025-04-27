@@ -1,5 +1,6 @@
-import 'dart:typed_data'; // ★追加
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // ★ Clipboard用
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
@@ -18,9 +19,10 @@ class _GroupManageScreenState extends State<GroupManageScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   bool _isLoading = false;
-  Uint8List? _pickedImageBytes; // ★変更
+  Uint8List? _pickedImageBytes;
   String? _currentIconUrl;
   String? _groupId;
+  String? _inviteCode; // ★ 招待コード用
 
   @override
   void initState() {
@@ -42,7 +44,7 @@ class _GroupManageScreenState extends State<GroupManageScreen> {
       final userData = userDoc.data();
       if (userData == null || (userData['groupId'] == null || userData['groupId'].isEmpty)) {
         if (!mounted) return;
-        Navigator.pushReplacementNamed(context, '/groupCreate'); // グループ未所属なら作成画面へ
+        Navigator.pushReplacementNamed(context, '/groupCreate');
         return;
       }
 
@@ -53,6 +55,7 @@ class _GroupManageScreenState extends State<GroupManageScreen> {
         _nameController.text = groupData['name'] ?? '';
         _descriptionController.text = groupData['description'] ?? '';
         _currentIconUrl = groupData['iconUrl'];
+        _inviteCode = groupData['inviteCode'];
       }
     } catch (e) {
       _showError('グループ情報取得エラー: $e');
@@ -108,6 +111,30 @@ class _GroupManageScreenState extends State<GroupManageScreen> {
                       maxLines: 3,
                     ),
                     const SizedBox(height: 24),
+
+                    if (_inviteCode != null) ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              '招待コード: $_inviteCode',
+                              style: const TextStyle(fontSize: 16),
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.copy),
+                            onPressed: () {
+                              Clipboard.setData(ClipboardData(text: _inviteCode!)); // ★ここだけ修正！
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('招待コードをコピーしました')),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
+
+                    const SizedBox(height: 24),
                     Center(
                       child: ElevatedButton(
                         onPressed: _updateGroup,
@@ -125,7 +152,7 @@ class _GroupManageScreenState extends State<GroupManageScreen> {
     final picker = ImagePicker();
     final picked = await picker.pickImage(source: ImageSource.gallery);
     if (picked != null) {
-      final bytes = await picked.readAsBytes(); // ★バイナリ読み込み
+      final bytes = await picked.readAsBytes();
       setState(() {
         _pickedImageBytes = bytes;
       });

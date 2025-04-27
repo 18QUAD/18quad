@@ -12,8 +12,9 @@ import 'screens/settings_screen.dart';
 import 'screens/admin_counts_screen.dart';
 import 'screens/title_screen.dart';
 import 'screens/ranking_screen.dart';
-import 'screens/group_create_screen.dart'; // ★ グループ作成画面をimport！
-import 'screens/group_manage_screen.dart'; // ★ グループ管理画面もimport！
+import 'screens/group_create_screen.dart'; // ★ グループ作成画面
+import 'screens/group_manage_screen.dart'; // ★ グループ管理画面
+import 'screens/group_request_screen.dart'; // ★ グループリクエスト画面 ←これ追加！
 
 import 'theme/app_theme.dart'; // ★ テーマ読み込み
 
@@ -46,7 +47,8 @@ class MyApp extends StatelessWidget {
           '/admin': (context) => const AdminCountsScreen(),
           '/ranking': (context) => const RankingScreen(),
           '/groupCreate': (context) => const GroupCreateScreen(),
-          '/groupManage': (context) => const GroupManageScreen(), // ★ グループ管理追加！
+          '/groupManage': (context) => const GroupManageScreen(),
+          '/groupRequest': (context) => const GroupRequestScreen(), // ★ グループリクエスト追加！
         },
       ),
     );

@@ -1,3 +1,4 @@
+// import宣言は変更なし
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -22,7 +23,6 @@ class AppScaffold extends StatelessWidget {
   Future<String?> _getUserIconUrl() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return null;
-
     try {
       final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
       final data = doc.data();
@@ -31,8 +31,20 @@ class AppScaffold extends StatelessWidget {
         return iconUrl;
       }
     } catch (_) {}
-
     return null;
+  }
+
+  Future<bool> _isUserGroupMember() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return false;
+    try {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      final data = doc.data();
+      final groupId = data?['groupId'];
+      return groupId != null && groupId.toString().isNotEmpty;
+    } catch (_) {
+      return false;
+    }
   }
 
   @override
@@ -40,10 +52,20 @@ class AppScaffold extends StatelessWidget {
     final user = FirebaseAuth.instance.currentUser;
     final isLoggedIn = user != null;
 
-    return FutureBuilder<String?>(
-      future: _getUserIconUrl(),
+    return FutureBuilder<List<dynamic>>(
+      future: Future.wait([
+        _getUserIconUrl(),
+        _isUserGroupMember(),
+      ]),
       builder: (context, snapshot) {
-        final iconUrl = snapshot.data;
+        if (!snapshot.hasData) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        final iconUrl = snapshot.data![0] as String?;
+        final bool isGroupMember = snapshot.data![1] as bool;
 
         return Scaffold(
           appBar: AppBar(
@@ -119,58 +141,52 @@ class AppScaffold extends StatelessWidget {
               padding: EdgeInsets.zero,
               children: [
                 const DrawerHeader(
-                  decoration: BoxDecoration(
-                    color: Colors.blue,
-                  ),
+                  decoration: BoxDecoration(color: Colors.blue),
                   child: Text('メニュー', style: TextStyle(color: Colors.white, fontSize: 24)),
                 ),
                 ListTile(
                   leading: const Icon(Icons.home),
                   title: const Text('ホーム'),
-                  onTap: () {
-                    Navigator.pushNamed(context, '/');
-                  },
+                  onTap: () => Navigator.pushNamed(context, '/'),
                 ),
                 ListTile(
                   leading: const Icon(Icons.sports_handball),
                   title: const Text('連打'),
-                  onTap: () {
-                    Navigator.pushNamed(context, '/home');
-                  },
+                  onTap: () => Navigator.pushNamed(context, '/home'),
                 ),
                 ListTile(
                   leading: const Icon(Icons.leaderboard),
                   title: const Text('ランキング'),
-                  onTap: () {
-                    Navigator.pushNamed(context, '/ranking');
-                  },
+                  onTap: () => Navigator.pushNamed(context, '/ranking'),
                 ),
                 ListTile(
                   leading: const Icon(Icons.admin_panel_settings),
                   title: const Text('ユーザ管理'),
-                  onTap: () {
-                    Navigator.pushNamed(context, '/admin');
-                  },
+                  onTap: () => Navigator.pushNamed(context, '/admin'),
                 ),
                 const Divider(),
                 ListTile(
-                  enabled: isLoggedIn,
+                  enabled: isLoggedIn && !isGroupMember,
                   leading: const Icon(Icons.group_add),
                   title: const Text('グループ作成'),
-                  onTap: isLoggedIn
-                      ? () {
-                          Navigator.pushNamed(context, '/groupCreate');
-                        }
+                  onTap: (isLoggedIn && !isGroupMember)
+                      ? () => Navigator.pushNamed(context, '/groupCreate')
                       : null,
                 ),
                 ListTile(
-                  enabled: isLoggedIn,
+                  enabled: isLoggedIn && !isGroupMember,
+                  leading: const Icon(Icons.input),
+                  title: const Text('グループリクエスト'),
+                  onTap: (isLoggedIn && !isGroupMember)
+                      ? () => Navigator.pushNamed(context, '/groupRequest')
+                      : null,
+                ),
+                ListTile(
+                  enabled: isLoggedIn && isGroupMember, // ★ここ修正！所属済みのときだけ有効！
                   leading: const Icon(Icons.group),
                   title: const Text('グループ管理'),
-                  onTap: isLoggedIn
-                      ? () {
-                          Navigator.pushNamed(context, '/groupManage');
-                        }
+                  onTap: (isLoggedIn && isGroupMember)
+                      ? () => Navigator.pushNamed(context, '/groupManage')
                       : null,
                 ),
               ],
