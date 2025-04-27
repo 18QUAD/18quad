@@ -39,56 +39,111 @@ class AppScaffold extends StatelessWidget {
 
         return Scaffold(
           appBar: AppBar(
+            leading: Builder(
+              builder: (context) => IconButton(
+                icon: const Icon(Icons.menu),
+                onPressed: () => Scaffold.of(context).openDrawer(),
+              ),
+            ),
             title: Text(title),
-            automaticallyImplyLeading: true,
             centerTitle: false,
             actions: [
               Builder(
                 builder: (context) {
+                  final user = FirebaseAuth.instance.currentUser;
                   return Container(
                     margin: const EdgeInsets.only(right: 8),
-                    child: FirebaseAuth.instance.currentUser == null
-                        ? IconButton(
-                            icon: const Icon(Icons.account_circle),
-                            onPressed: () => Navigator.pushNamed(context, '/login'),
-                          )
-                        : PopupMenuButton<String>(
-                            offset: const Offset(0, 50),
-                            icon: CircleAvatar(
-                              radius: 14,
-                              backgroundImage: (iconUrl != null && iconUrl.isNotEmpty)
-                                  ? NetworkImage(iconUrl)
-                                  : const AssetImage('assets/icons/default.png') as ImageProvider,
-                              backgroundColor: Colors.grey[200],
+                    child: PopupMenuButton<String>(
+                      offset: const Offset(0, 50),
+                      icon: CircleAvatar(
+                        radius: 14,
+                        backgroundImage: (iconUrl != null && iconUrl.isNotEmpty)
+                            ? NetworkImage(iconUrl)
+                            : const AssetImage('assets/icons/default.png') as ImageProvider,
+                        backgroundColor: Colors.grey[200],
+                      ),
+                      onSelected: (value) {
+                        if (value == 'settings') {
+                          Navigator.pushNamed(context, '/settings');
+                        } else if (value == 'logout') {
+                          FirebaseAuth.instance.signOut();
+                          Navigator.pushNamedAndRemoveUntil(context, '/', (_) => false);
+                        } else if (value == 'login') {
+                          Navigator.pushNamed(context, '/login');
+                        }
+                      },
+                      itemBuilder: (context) {
+                        if (user != null) {
+                          return [
+                            PopupMenuItem(
+                              enabled: false,
+                              child: Text(user.displayName ?? '(名前未設定)'),
                             ),
-                            itemBuilder: (context) => [
-                              PopupMenuItem(
-                                enabled: false,
-                                child: Text(FirebaseAuth.instance.currentUser?.displayName ?? '(名前未設定)'),
-                              ),
-                              const PopupMenuDivider(),
-                              const PopupMenuItem(
-                                value: 'settings',
-                                child: Text('編集'),
-                              ),
-                              const PopupMenuItem(
-                                value: 'logout',
-                                child: Text('ログアウト'),
-                              ),
-                            ],
-                            onSelected: (value) {
-                              if (value == 'settings') {
-                                Navigator.pushNamed(context, '/settings');
-                              } else if (value == 'logout') {
-                                FirebaseAuth.instance.signOut();
-                                Navigator.pushNamedAndRemoveUntil(context, '/', (_) => false);
-                              }
-                            },
-                          ),
+                            const PopupMenuDivider(),
+                            const PopupMenuItem(
+                              value: 'settings',
+                              child: Text('編集'),
+                            ),
+                            const PopupMenuItem(
+                              value: 'logout',
+                              child: Text('ログアウト'),
+                            ),
+                          ];
+                        } else {
+                          return [
+                            const PopupMenuItem(
+                              value: 'login',
+                              child: Text('ログイン'),
+                            ),
+                          ];
+                        }
+                      },
+                    ),
                   );
                 },
               ),
             ],
+          ),
+          drawer: Drawer(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                const DrawerHeader(
+                  decoration: BoxDecoration(
+                    color: Colors.blue,
+                  ),
+                  child: Text('メニュー', style: TextStyle(color: Colors.white, fontSize: 24)),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.home),
+                  title: const Text('ホーム'),
+                  onTap: () {
+                    Navigator.pushNamed(context, '/');
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.sports_handball),
+                  title: const Text('連打'),
+                  onTap: () {
+                    Navigator.pushNamed(context, '/home');
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.leaderboard),
+                  title: const Text('ランキング'),
+                  onTap: () {
+                    Navigator.pushNamed(context, '/ranking');
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.admin_panel_settings),
+                  title: const Text('ユーザ管理'),
+                  onTap: () {
+                    Navigator.pushNamed(context, '/admin');
+                  },
+                ),
+              ],
+            ),
           ),
           body: child,
           floatingActionButton: floatingActionButton,

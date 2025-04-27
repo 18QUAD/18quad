@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-import '../widgets/app_drawer.dart';
 import '../theme/colors.dart';
 import '../theme/text_styles.dart';
 import '../services/firestore_service.dart';
+import '../widgets/app_scaffold.dart'; // ←ここ大事
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -53,10 +53,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('連打')),
-      drawer: const AppDrawer(),
-      body: Center(
+    return AppScaffold(
+      title: '連打',
+      child: Center(
         child: _isLoading
             ? const CircularProgressIndicator()
             : Column(
