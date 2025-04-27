@@ -12,8 +12,10 @@ import 'screens/settings_screen.dart';
 import 'screens/admin_counts_screen.dart';
 import 'screens/title_screen.dart';
 import 'screens/ranking_screen.dart';
+import 'screens/group_create_screen.dart'; // ★ グループ作成画面をimport！
+import 'screens/group_manage_screen.dart'; // ★ グループ管理画面もimport！
 
-import 'theme/app_theme.dart'; // ★ 追加！テーマ読み込み
+import 'theme/app_theme.dart'; // ★ テーマ読み込み
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,7 +35,7 @@ class MyApp extends StatelessWidget {
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         title: '18QUAD',
-        theme: AppTheme.light, // ★ ここで3本柱のテーマを適用！
+        theme: AppTheme.light, // ★ テーマ適用
         initialRoute: '/',
         routes: {
           '/': (context) => const TitleScreen(),
@@ -43,6 +45,8 @@ class MyApp extends StatelessWidget {
           '/settings': (context) => const SettingsScreen(),
           '/admin': (context) => const AdminCountsScreen(),
           '/ranking': (context) => const RankingScreen(),
+          '/groupCreate': (context) => const GroupCreateScreen(),
+          '/groupManage': (context) => const GroupManageScreen(), // ★ グループ管理追加！
         },
       ),
     );

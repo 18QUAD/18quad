@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../widgets/app_scaffold.dart';
 import '../theme/colors.dart';
 import '../theme/text_styles.dart';
+import '../services/functions_service.dart'; // Cloud Functions呼び出し用
 
 class AdminCountsScreen extends StatefulWidget {
   const AdminCountsScreen({super.key});
@@ -66,10 +67,65 @@ class _AdminCountsScreenState extends State<AdminCountsScreen> {
     );
   }
 
+  Future<void> _addUser() async {
+    final emailController = TextEditingController();
+    final nameController = TextEditingController();
+    final passwordController = TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('新規ユーザー追加'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: emailController,
+              decoration: const InputDecoration(labelText: 'メールアドレス'),
+            ),
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(labelText: '表示名'),
+            ),
+            TextField(
+              controller: passwordController,
+              decoration: const InputDecoration(labelText: '初期パスワード'),
+              obscureText: true,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('キャンセル'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await FunctionsService.createUser(
+                email: emailController.text.trim(),
+                password: passwordController.text.trim(),
+                displayName: nameController.text.trim(),
+              );
+              _loadData();
+            },
+            child: const Text('追加'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
       title: 'ユーザー管理',
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.add),
+          onPressed: _addUser,
+        ),
+      ],
       child: ListView.builder(
         itemCount: _users.length,
         itemBuilder: (context, index) {

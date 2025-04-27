@@ -6,13 +6,18 @@ class AppScaffold extends StatelessWidget {
   final String title;
   final Widget child;
   final Widget? floatingActionButton;
+  final List<Widget>? actions;
 
   const AppScaffold({
     super.key,
     required this.title,
     required this.child,
     this.floatingActionButton,
+    this.actions,
   });
+
+  static const String defaultUserIconUrl =
+      'https://firebasestorage.googleapis.com/v0/b/quad-2c91f.appspot.com/o/user_icons%2Fdefault.png?alt=media&token=a2b91b53-2904-4601-b734-fbf92bc82ade';
 
   Future<String?> _getUserIconUrl() async {
     final user = FirebaseAuth.instance.currentUser;
@@ -32,6 +37,9 @@ class AppScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    final isLoggedIn = user != null;
+
     return FutureBuilder<String?>(
       future: _getUserIconUrl(),
       builder: (context, snapshot) {
@@ -48,18 +56,20 @@ class AppScaffold extends StatelessWidget {
             title: Text(title),
             centerTitle: false,
             actions: [
+              if (actions != null) ...actions!,
               Builder(
                 builder: (context) {
-                  final user = FirebaseAuth.instance.currentUser;
                   return Container(
                     margin: const EdgeInsets.only(right: 8),
                     child: PopupMenuButton<String>(
                       offset: const Offset(0, 50),
                       icon: CircleAvatar(
                         radius: 14,
-                        backgroundImage: (iconUrl != null && iconUrl.isNotEmpty)
-                            ? NetworkImage(iconUrl)
-                            : const AssetImage('assets/icons/default.png') as ImageProvider,
+                        backgroundImage: NetworkImage(
+                          (iconUrl != null && iconUrl.isNotEmpty)
+                              ? iconUrl
+                              : defaultUserIconUrl,
+                        ),
                         backgroundColor: Colors.grey[200],
                       ),
                       onSelected: (value) {
@@ -141,6 +151,27 @@ class AppScaffold extends StatelessWidget {
                   onTap: () {
                     Navigator.pushNamed(context, '/admin');
                   },
+                ),
+                const Divider(),
+                ListTile(
+                  enabled: isLoggedIn,
+                  leading: const Icon(Icons.group_add),
+                  title: const Text('グループ作成'),
+                  onTap: isLoggedIn
+                      ? () {
+                          Navigator.pushNamed(context, '/groupCreate');
+                        }
+                      : null,
+                ),
+                ListTile(
+                  enabled: isLoggedIn,
+                  leading: const Icon(Icons.group),
+                  title: const Text('グループ管理'),
+                  onTap: isLoggedIn
+                      ? () {
+                          Navigator.pushNamed(context, '/groupManage');
+                        }
+                      : null,
                 ),
               ],
             ),
