@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -21,16 +21,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _isLoading = false;
   String? _error;
 
-  File? _selectedImage; // ★ 選択された画像ファイル
-  String? _uploadedIconUrl; // ★ アップロード後のURL
+  Uint8List? _selectedImage;
+  String? _uploadedIconUrl;
 
   final picker = ImagePicker();
+
+  static const String defaultUserIconUrl =
+      'https://firebasestorage.googleapis.com/v0/b/quad-2c91f.firebasestorage.app/o/user_icons%2Fdefault.png?alt=media&token=a2b91b53-2904-4601-b734-fbf92bc82ade';
 
   Future<void> _pickImage() async {
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
+      final bytes = await pickedFile.readAsBytes();
       setState(() {
-        _selectedImage = File(pickedFile.path);
+        _selectedImage = bytes;
       });
     }
   }
@@ -41,12 +45,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final storageRef = FirebaseStorage.instance
         .ref()
         .child('user_icons/${DateTime.now().millisecondsSinceEpoch}.png');
-    await storageRef.putFile(_selectedImage!);
+    await storageRef.putData(_selectedImage!);
     _uploadedIconUrl = await storageRef.getDownloadURL();
   }
 
   Future<void> _register() async {
-    if (_emailController.text.isEmpty || _passwordController.text.isEmpty || _displayNameController.text.isEmpty) {
+    if (_emailController.text.isEmpty ||
+        _passwordController.text.isEmpty ||
+        _displayNameController.text.isEmpty) {
       setState(() => _error = '全てのフィールドを入力してください');
       return;
     }
@@ -57,14 +63,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
 
     try {
-      await _uploadImage(); // ★ まずアイコンをアップロード！
+      await _uploadImage();
+
+      final iconUrlToUse = _uploadedIconUrl ?? defaultUserIconUrl;
 
       await FunctionsService.createUser(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
         displayName: _displayNameController.text.trim(),
-        iconUrl: _uploadedIconUrl, // ★ 取得できたURLを渡す！
+        iconUrl: iconUrlToUse,
       );
+
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/home');
       }
@@ -73,6 +82,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    _displayNameController.dispose();
+    super.dispose();
   }
 
   @override
@@ -87,9 +104,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
               onTap: _pickImage,
               child: CircleAvatar(
                 radius: 50,
-                backgroundImage: _selectedImage != null
-                    ? FileImage(_selectedImage!)
-                    : const AssetImage('assets/icons/default.png') as ImageProvider,
+                backgroundImage: (_selectedImage != null
+                        ? MemoryImage(_selectedImage!)
+                        : const NetworkImage(defaultUserIconUrl))
+                    as ImageProvider<Object>, // ✅ キャスト追加で型エラー解消
               ),
             ),
             const SizedBox(height: 16),

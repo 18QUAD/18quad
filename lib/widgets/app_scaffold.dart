@@ -1,4 +1,3 @@
-// import宣言は変更なし
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -17,8 +16,9 @@ class AppScaffold extends StatelessWidget {
     this.actions,
   });
 
+  // ✅ 正しいデフォルトアイコンURLに修正
   static const String defaultUserIconUrl =
-      'https://firebasestorage.googleapis.com/v0/b/quad-2c91f.appspot.com/o/user_icons%2Fdefault.png?alt=media&token=a2b91b53-2904-4601-b734-fbf92bc82ade';
+      'https://firebasestorage.googleapis.com/v0/b/quad-2c91f.firebasestorage.app/o/user_icons%2Fdefault.png?alt=media&token=a2b91b53-2904-4601-b734-fbf92bc82ade';
 
   Future<String?> _getUserIconUrl() async {
     final user = FirebaseAuth.instance.currentUser;
@@ -34,17 +34,18 @@ class AppScaffold extends StatelessWidget {
     return null;
   }
 
-  Future<bool> _isUserGroupMember() async {
+  Future<String> _getUserStatus() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return false;
+    if (user == null) return 'none';
     try {
       final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
       final data = doc.data();
-      final groupId = data?['groupId'];
-      return groupId != null && groupId.toString().isNotEmpty;
-    } catch (_) {
-      return false;
-    }
+      final status = data?['status'];
+      if (status is String && status.isNotEmpty) {
+        return status;
+      }
+    } catch (_) {}
+    return 'none';
   }
 
   @override
@@ -55,7 +56,7 @@ class AppScaffold extends StatelessWidget {
     return FutureBuilder<List<dynamic>>(
       future: Future.wait([
         _getUserIconUrl(),
-        _isUserGroupMember(),
+        _getUserStatus(),
       ]),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
@@ -65,7 +66,7 @@ class AppScaffold extends StatelessWidget {
         }
 
         final iconUrl = snapshot.data![0] as String?;
-        final bool isGroupMember = snapshot.data![1] as bool;
+        final String userStatus = snapshot.data![1] as String;
 
         return Scaffold(
           appBar: AppBar(
@@ -166,26 +167,26 @@ class AppScaffold extends StatelessWidget {
                 ),
                 const Divider(),
                 ListTile(
-                  enabled: isLoggedIn && !isGroupMember,
+                  enabled: isLoggedIn && userStatus == 'none',
                   leading: const Icon(Icons.group_add),
                   title: const Text('グループ作成'),
-                  onTap: (isLoggedIn && !isGroupMember)
+                  onTap: (isLoggedIn && userStatus == 'none')
                       ? () => Navigator.pushNamed(context, '/groupCreate')
                       : null,
                 ),
                 ListTile(
-                  enabled: isLoggedIn && !isGroupMember,
+                  enabled: isLoggedIn && userStatus == 'none',
                   leading: const Icon(Icons.input),
                   title: const Text('グループリクエスト'),
-                  onTap: (isLoggedIn && !isGroupMember)
+                  onTap: (isLoggedIn && userStatus == 'none')
                       ? () => Navigator.pushNamed(context, '/groupRequest')
                       : null,
                 ),
                 ListTile(
-                  enabled: isLoggedIn && isGroupMember, // ★ここ修正！所属済みのときだけ有効！
+                  enabled: isLoggedIn && userStatus == 'member',
                   leading: const Icon(Icons.group),
                   title: const Text('グループ管理'),
-                  onTap: (isLoggedIn && isGroupMember)
+                  onTap: (isLoggedIn && userStatus == 'member')
                       ? () => Navigator.pushNamed(context, '/groupManage')
                       : null,
                 ),

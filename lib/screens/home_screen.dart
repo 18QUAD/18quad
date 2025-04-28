@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../theme/colors.dart';
 import '../theme/text_styles.dart';
 import '../services/firestore_service.dart';
-import '../widgets/app_scaffold.dart'; // ←ここ大事
+import '../widgets/app_scaffold.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -20,7 +20,15 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    _redirectIfNotLoggedIn();
     _loadCount();
+  }
+
+  Future<void> _redirectIfNotLoggedIn() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      Future.microtask(() => Navigator.pushReplacementNamed(context, '/login'));
+    }
   }
 
   Future<void> _loadCount() async {
@@ -53,6 +61,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return AppScaffold(
       title: '連打',
       child: Center(
