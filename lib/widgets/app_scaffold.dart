@@ -16,7 +16,6 @@ class AppScaffold extends StatelessWidget {
     this.actions,
   });
 
-  // ✅ 正しいデフォルトアイコンURLに修正
   static const String defaultUserIconUrl =
       'https://firebasestorage.googleapis.com/v0/b/quad-2c91f.firebasestorage.app/o/user_icons%2Fdefault.png?alt=media&token=a2b91b53-2904-4601-b734-fbf92bc82ade';
 
@@ -48,6 +47,18 @@ class AppScaffold extends StatelessWidget {
     return 'none';
   }
 
+  Future<bool> _isAdminUser() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return false;
+    try {
+      final idTokenResult = await user.getIdTokenResult(true);
+      final claims = idTokenResult.claims;
+      return claims?['admin'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
@@ -57,6 +68,7 @@ class AppScaffold extends StatelessWidget {
       future: Future.wait([
         _getUserIconUrl(),
         _getUserStatus(),
+        _isAdminUser(),
       ]),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
@@ -67,6 +79,7 @@ class AppScaffold extends StatelessWidget {
 
         final iconUrl = snapshot.data![0] as String?;
         final String userStatus = snapshot.data![1] as String;
+        final bool isAdmin = snapshot.data![2] as bool;
 
         return Scaffold(
           appBar: AppBar(
@@ -161,9 +174,10 @@ class AppScaffold extends StatelessWidget {
                   onTap: () => Navigator.pushNamed(context, '/ranking'),
                 ),
                 ListTile(
+                  enabled: isAdmin,
                   leading: const Icon(Icons.admin_panel_settings),
                   title: const Text('ユーザ管理'),
-                  onTap: () => Navigator.pushNamed(context, '/admin'),
+                  onTap: isAdmin ? () => Navigator.pushNamed(context, '/admin') : null,
                 ),
                 const Divider(),
                 ListTile(

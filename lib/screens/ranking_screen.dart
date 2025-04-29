@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../widgets/app_scaffold.dart';
 import '../theme/colors.dart';
 import '../theme/text_styles.dart';
+import '../services/firestore_service.dart';
 
 class RankingScreen extends StatefulWidget {
   const RankingScreen({super.key});
@@ -16,11 +16,17 @@ class _RankingScreenState extends State<RankingScreen> {
   Widget build(BuildContext context) {
     return AppScaffold(
       title: 'ランキング',
-      child: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('counts').orderBy('count', descending: true).snapshots(),
+      child: StreamBuilder(
+        stream: FirestoreService.getRankingStream(), // ★ countsコレクショングループを購読
         builder: (context, snapshot) {
-          if (!snapshot.hasData) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return const Center(child: Text('エラーが発生しました'));
+          }
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(child: Text('データが存在しません'));
           }
 
           final docs = snapshot.data!.docs;
@@ -29,17 +35,26 @@ class _RankingScreenState extends State<RankingScreen> {
             itemCount: docs.length,
             itemBuilder: (context, index) {
               final doc = docs[index];
-              final uid = doc.id;
+              final parentPath = doc.reference.parent.parent;
+              final uid = parentPath?.id ?? '';
+
+              if (uid.isEmpty) {
+                return const ListTile(title: Text('不明なユーザー'));
+              }
+
               final count = doc['count'] ?? 0;
 
-              return FutureBuilder<DocumentSnapshot>(
-                future: FirebaseFirestore.instance.collection('users').doc(uid).get(),
+              return FutureBuilder(
+                future: FirestoreService.getUserData(uid),
                 builder: (context, userSnapshot) {
-                  if (!userSnapshot.hasData) {
+                  if (userSnapshot.connectionState == ConnectionState.waiting) {
                     return const ListTile(title: Text('読み込み中...'));
                   }
+                  if (userSnapshot.hasError) {
+                    return const ListTile(title: Text('ユーザー情報取得エラー'));
+                  }
 
-                  final userData = userSnapshot.data?.data() as Map<String, dynamic>?;
+                  final userData = userSnapshot.data;
                   final displayName = userData?['displayName'] ?? '名無し';
                   final iconUrl = userData?['iconUrl'];
 
@@ -49,7 +64,7 @@ class _RankingScreenState extends State<RankingScreen> {
                           ? NetworkImage(iconUrl)
                           : const AssetImage('assets/icons/default.png') as ImageProvider,
                     ),
-                    title: Text('$displayName', style: AppTextStyles.body),
+                    title: Text(displayName, style: AppTextStyles.body),
                     trailing: Text('$count', style: AppTextStyles.label),
                   );
                 },
