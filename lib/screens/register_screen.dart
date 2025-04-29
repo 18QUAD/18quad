@@ -100,14 +100,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
         padding: const EdgeInsets.all(16),
         child: ListView(
           children: [
-            GestureDetector(
-              onTap: _pickImage,
-              child: CircleAvatar(
-                radius: 50,
-                backgroundImage: (_selectedImage != null
-                        ? MemoryImage(_selectedImage!)
-                        : const NetworkImage(defaultUserIconUrl))
-                    as ImageProvider<Object>, // ✅ キャスト追加で型エラー解消
+            Center(
+              child: GestureDetector(
+                onTap: _pickImage,
+                child: CircleAvatar(
+                  radius: 50,
+                  backgroundImage: (_selectedImage != null
+                          ? MemoryImage(_selectedImage!)
+                          : const NetworkImage(defaultUserIconUrl))
+                      as ImageProvider,
+                ),
               ),
             ),
             const SizedBox(height: 16),

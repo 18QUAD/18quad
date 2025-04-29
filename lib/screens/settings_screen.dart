@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../widgets/app_scaffold.dart';
+import '../services/firestore_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -17,6 +18,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final TextEditingController _displayNameController = TextEditingController();
   Uint8List? _selectedImage;
   String? _currentIconUrl;
+  String? _groupName;
+  String? _status;
   bool _isLoading = false;
 
   @override
@@ -39,9 +42,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (doc.exists) {
       final data = doc.data();
       if (data != null) {
+        final groupId = data['groupId'] ?? '';
+        String? groupName;
+        if (groupId.isNotEmpty) {
+          final groupData = await FirestoreService.getGroupData(groupId);
+          groupName = groupData?['name'];
+        }
+
         setState(() {
           _displayNameController.text = data['displayName'] ?? '';
           _currentIconUrl = data['iconUrl'];
+          _groupName = groupName ?? '（未所属）';
+          _status = data['status'] ?? 'none';
         });
       }
     }
@@ -123,19 +135,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  GestureDetector(
-                    onTap: _pickImage,
-                    child: CircleAvatar(
-                      radius: 50,
-                      backgroundImage: _selectedImage != null
-                          ? MemoryImage(_selectedImage!)
-                          : (_currentIconUrl != null
-                              ? NetworkImage(_currentIconUrl!) as ImageProvider
-                              : null),
-                      child: (_selectedImage == null && _currentIconUrl == null)
-                          ? const Icon(Icons.add_a_photo, size: 40)
-                          : null,
+                  Center(
+                    child: GestureDetector(
+                      onTap: _pickImage,
+                      child: CircleAvatar(
+                        radius: 50,
+                        backgroundImage: _selectedImage != null
+                            ? MemoryImage(_selectedImage!)
+                            : (_currentIconUrl != null
+                                ? NetworkImage(_currentIconUrl!) as ImageProvider
+                                : null),
+                        child: (_selectedImage == null && _currentIconUrl == null)
+                            ? const Icon(Icons.add_a_photo, size: 40)
+                            : null,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -144,9 +159,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     decoration: const InputDecoration(labelText: '表示名'),
                   ),
                   const SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: _saveChanges,
-                    child: const Text('保存'),
+                  if (_groupName != null) ...[
+                    Text('所属グループ: $_groupName', style: const TextStyle(fontSize: 16)),
+                    const SizedBox(height: 8),
+                  ],
+                  if (_status != null) ...[
+                    Text('ステータス: $_status', style: const TextStyle(fontSize: 16)),
+                    const SizedBox(height: 8),
+                  ],
+                  const SizedBox(height: 20),
+                  Center(
+                    child: ElevatedButton(
+                      onPressed: _saveChanges,
+                      child: const Text('保存'),
+                    ),
                   ),
                 ],
               ),

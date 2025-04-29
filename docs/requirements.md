@@ -33,7 +33,8 @@
 
 ## 📊 ランキング機能
 
-- [x] Firestoreの counts コレクションから集計
+- [x] Firestoreの counts コレクションから集計  
+  🔄 構成変更：現在は `/users/{uid}/counts/{uid}` サブコレクションに移行済（`collectionGroup('counts')` 使用）
 - [x] 自分のスコアをハイライト（ログイン中ユーザの強調表示）
 - [x] UIDではなく表示名とアイコンで表示
 - [x] ランキング順位表示（1位〜）
@@ -47,8 +48,9 @@
 - [x] 管理者ユーザでログインしたときのみメニューに「ユーザ管理」を表示
 - [x] ユーザ管理画面で、すべてのユーザ情報を一覧表示
 - [x] 各ユーザの情報（表示名・パスワード・アイコンなど）を編集できる
-- [ ] ユーザの削除、およびカウントのリセット操作が可能（予定）
-- [x] Firestoreの `users` + `counts` コレクションと連動管理
+- [x] ユーザの削除、およびカウントのリセット操作が可能  
+  ✅ Cloud Functions `deleteUserFully` により、Authentication＋Firestoreデータを一括削除
+- [x] Firestoreの `users` + `counts` サブコレクションと連動管理済み
 
 ---
 
@@ -63,9 +65,17 @@
 
 ---
 
+## 📁 Firestore構成整理（2025-04-29反映）
+
+- [x] `counts`：`/users/{uid}/counts/{uid}` に統一（旧：トップレベル `/counts` は廃止）
+- [x] `group_requests`：`/users/{uid}/group_requests/{doc}` として設計済（今後実装予定）
+- [x] `groups`：ルートコレクション `/groups/{groupId}` を定義復活
+- [x] Firestoreスキーマを `docs/firestore_schema.md` にて明記・管理
+
+---
+
 ## 🔄 今後の改善・調整中機能
 
-- [ ] Firebase Functionsで作成したユーザの `counts` 登録検証
 - [ ] Firestore Security Rules強化（管理者以外読み取り制限）
 - [ ] グループ関連機能のエラーハンドリング（例：無効なコード、二重申請防止）
 - [ ] ゲストモード（ログイン不要モード）の導入検討

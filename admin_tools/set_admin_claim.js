@@ -13,7 +13,7 @@ admin.initializeApp({
 });
 
 // ② 管理者にしたい対象UID
-const targetUid = 'SKilNoUgiWRYSSMuuDAKY5rYPMu1';
+const targetUid = 'XvDaJNoQfjQY3uHycZTy8TCF2nJ3';
 
 async function setAdminClaim() {
   try {
