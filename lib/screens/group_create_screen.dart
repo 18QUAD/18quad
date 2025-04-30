@@ -114,6 +114,7 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
         groupName: groupName,
         description: groupDescription,
         iconBytes: _pickedImageBytes,
+        ownerUid: user.uid, // ← 追加された重要フィールド
       );
 
       if (mounted) Navigator.pop(context);

@@ -1,70 +1,83 @@
-// lib/widgets/app_drawer.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AppDrawer extends StatelessWidget {
-  const AppDrawer({super.key});
+  final bool isLoggedIn;
+  final String userStatus;
+  final bool isAdmin;
 
-  Future<Map<String, dynamic>?> _fetchUserData(String uid) async {
-    final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-    return doc.data();
-  }
+  const AppDrawer({
+    super.key,
+    required this.isLoggedIn,
+    required this.userStatus,
+    required this.isAdmin,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) {
-      return const Drawer(child: Center(child: Text('ログインしてください')));
-    }
-
     return Drawer(
-      child: FutureBuilder<Map<String, dynamic>?> (
-        future: _fetchUserData(uid),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final user = snapshot.data!;
-          final displayName = user['displayName'] ?? '名無し';
-          final isAdmin = user['isAdmin'] == true;
-
-          return ListView(
-            children: [
-              DrawerHeader(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(Icons.account_circle, size: 48),
-                    const SizedBox(height: 8),
-                    Text(displayName, style: const TextStyle(fontSize: 20)),
-                  ],
-                ),
-              ),
-              ListTile(
-                leading: const Icon(Icons.home),
-                title: const Text('ホーム'),
-                onTap: () => Navigator.pushNamed(context, '/home'),
-              ),
-              ListTile(
-                leading: const Icon(Icons.bar_chart),
-                title: const Text('ランキング'),
-                onTap: () => Navigator.pushNamed(context, '/ranking'),
-              ),
-              if (isAdmin)
-                ListTile(
-                  leading: const Icon(Icons.admin_panel_settings),
-                  title: const Text('ユーザ管理'),
-                  onTap: () => Navigator.pushNamed(context, '/adminUsers'),
-                ),
-              ListTile(
-                leading: const Icon(Icons.settings),
-                title: const Text('設定'),
-                onTap: () => Navigator.pushNamed(context, '/settings'),
-              ),
-            ],
-          );
-        },
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          const DrawerHeader(
+            decoration: BoxDecoration(color: Colors.blue),
+            child: Text('メニュー', style: TextStyle(color: Colors.white, fontSize: 24)),
+          ),
+          ListTile(
+            leading: const Icon(Icons.home),
+            title: const Text('ホーム'),
+            onTap: () => Navigator.pushNamed(context, '/'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.sports_handball),
+            title: const Text('連打'),
+            onTap: () => Navigator.pushNamed(context, '/home'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.leaderboard),
+            title: const Text('ランキング'),
+            onTap: () => Navigator.pushNamed(context, '/ranking'),
+          ),
+          ListTile(
+            enabled: isAdmin,
+            leading: const Icon(Icons.admin_panel_settings),
+            title: const Text('ユーザ管理'),
+            onTap: isAdmin ? () => Navigator.pushNamed(context, '/admin') : null,
+          ),
+          const Divider(),
+          ListTile(
+            enabled: isLoggedIn && userStatus == 'none',
+            leading: const Icon(Icons.group_add),
+            title: const Text('グループ作成'),
+            onTap: isLoggedIn && userStatus == 'none'
+                ? () => Navigator.pushNamed(context, '/groupCreate')
+                : null,
+          ),
+          ListTile(
+            enabled: isLoggedIn && userStatus == 'none',
+            leading: const Icon(Icons.input),
+            title: const Text('グループリクエスト'),
+            onTap: isLoggedIn && userStatus == 'none'
+                ? () => Navigator.pushNamed(context, '/groupRequest')
+                : null,
+          ),
+          ListTile(
+            enabled: isLoggedIn && userStatus == 'manager',
+            leading: const Icon(Icons.group),
+            title: const Text('グループ管理'),
+            onTap: isLoggedIn && userStatus == 'manager'
+                ? () => Navigator.pushNamed(context, '/groupManage')
+                : null,
+          ),
+          ListTile(
+            enabled: isLoggedIn && userStatus == 'manager',
+            leading: const Icon(Icons.assignment_ind),
+            title: const Text('参加リクエスト管理'),
+            onTap: isLoggedIn && userStatus == 'manager'
+                ? () => Navigator.pushNamed(context, '/adminGroupRequests')
+                : null,
+          ),
+        ],
       ),
     );
   }

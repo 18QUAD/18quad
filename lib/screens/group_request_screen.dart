@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../widgets/app_scaffold.dart';
+import '../services/firestore_service.dart';
 
 class GroupRequestScreen extends StatefulWidget {
   const GroupRequestScreen({super.key});
@@ -13,6 +14,8 @@ class GroupRequestScreen extends StatefulWidget {
 
 class _GroupRequestScreenState extends State<GroupRequestScreen> {
   final TextEditingController _inviteCodeController = TextEditingController();
+  final TextEditingController _messageController = TextEditingController();
+
   bool _isLoading = false;
   Map<String, dynamic>? _groupData;
   String? _groupDocId;
@@ -59,6 +62,15 @@ class _GroupRequestScreenState extends State<GroupRequestScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(_groupData!['description'] ?? ''),
+                    const SizedBox(height: 24),
+                    TextField(
+                      controller: _messageController,
+                      decoration: const InputDecoration(
+                        labelText: '申請メッセージ（任意）',
+                        border: OutlineInputBorder(),
+                      ),
+                      maxLines: 2,
+                    ),
                     const SizedBox(height: 24),
                     Center(
                       child: ElevatedButton(
@@ -120,9 +132,12 @@ class _GroupRequestScreenState extends State<GroupRequestScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final existing = await FirebaseFirestore.instance
-          .collection('group_requests')
-          .where('requesterId', isEqualTo: currentUser.uid)
+      final requestsRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .collection('group_requests');
+
+      final existing = await requestsRef
           .where('groupId', isEqualTo: _groupDocId)
           .where('status', isEqualTo: 'pending')
           .get();
@@ -132,19 +147,35 @@ class _GroupRequestScreenState extends State<GroupRequestScreen> {
         return;
       }
 
-      await FirebaseFirestore.instance.collection('group_requests').add({
-        'requesterId': currentUser.uid,
-        'groupId': _groupDocId,
-        'inviteCode': _inviteCodeController.text.trim(),
-        'status': 'pending',
-        'createdAt': Timestamp.now(),
+      await FirestoreService.addGroupJoinRequest(
+        requesterId: currentUser.uid,
+        groupId: _groupDocId!,
+        inviteCode: _inviteCodeController.text.trim(),
+        message: _messageController.text.trim(),
+      );
+
+      // 通知：申請者へ
+      final groupName = _groupData?['name'] ?? '不明なグループ';
+      await FirebaseFirestore.instance.collection('notifications').add({
+        'toUid': currentUser.uid,
+        'message': '$groupName にグループ参加申請を送信しました',
+        'timestamp': Timestamp.now(),
+        'isRead': false,
       });
 
-      // ★ リクエスト送信成功後、ユーザーステータスを'pending'に更新
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(currentUser.uid)
-          .update({'status': 'pending'});
+      // 通知：グループ長へ
+      final groupDoc = await FirebaseFirestore.instance.collection('groups').doc(_groupDocId).get();
+      final ownerUid = groupDoc.data()?['ownerUid'];
+      final requesterName = currentUser.displayName ?? '誰か';
+
+      if (ownerUid != null && ownerUid != currentUser.uid) {
+        await FirebaseFirestore.instance.collection('notifications').add({
+          'toUid': ownerUid,
+          'message': '$requesterName からグループ参加申請が届きました',
+          'timestamp': Timestamp.now(),
+          'isRead': false,
+        });
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('リクエストを送信しました。')),
@@ -152,6 +183,7 @@ class _GroupRequestScreenState extends State<GroupRequestScreen> {
 
       setState(() {
         _inviteCodeController.clear();
+        _messageController.clear();
         _groupData = null;
         _groupDocId = null;
       });

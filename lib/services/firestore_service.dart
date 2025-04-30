@@ -104,6 +104,7 @@ class FirestoreService {
     required String groupName,
     String? description,
     required Uint8List? iconBytes,
+    required String ownerUid,
   }) async {
     final uid = currentUid;
     final docRef = _db.collection('groups').doc();
@@ -127,6 +128,7 @@ class FirestoreService {
       'inviteCode': inviteCode,
       'createdAt': FieldValue.serverTimestamp(),
       'createdBy': uid,
+      'ownerUid': ownerUid,
     });
 
     await _db.collection('users').doc(uid).update({
@@ -147,7 +149,6 @@ class FirestoreService {
     };
 
     if (iconBytes != null) {
-      // 現在のiconUrlを取得して削除対象か確認
       final doc = await _db.collection('groups').doc(groupId).get();
       final oldIconUrl = doc.data()?['iconUrl'] as String? ?? '';
       if (oldIconUrl.isNotEmpty && !oldIconUrl.contains('default.png')) {
@@ -160,7 +161,6 @@ class FirestoreService {
         }
       }
 
-      // 新しいアイコンをアップロード
       final fileName = 'group_icons/${DateTime.now().millisecondsSinceEpoch}.png';
       final ref = FirebaseStorage.instance.ref().child(fileName);
       await ref.putData(iconBytes, SettableMetadata(contentType: 'image/png'));
@@ -202,6 +202,30 @@ class FirestoreService {
 
     await docRef.delete();
     print('✅ グループ $groupId を削除しました');
+  }
+
+  // ----------------------------
+  // グループ参加リクエスト
+  // ----------------------------
+
+  static Future<void> addGroupJoinRequest({
+    required String requesterId,
+    required String groupId,
+    required String inviteCode,
+    required String message,
+  }) async {
+    await _db
+        .collection('users')
+        .doc(requesterId)
+        .collection('group_requests')
+        .add({
+      'requesterId': requesterId,
+      'groupId': groupId,
+      'inviteCode': inviteCode,
+      'message': message,
+      'status': 'pending',
+      'createdAt': Timestamp.now(),
+    });
   }
 
   static String _generateInviteCode() {
