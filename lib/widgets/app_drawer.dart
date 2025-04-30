@@ -24,25 +24,22 @@ class AppDrawer extends StatelessWidget {
             child: Text('メニュー', style: TextStyle(color: Colors.white, fontSize: 24)),
           ),
           ListTile(
-            leading: const Icon(Icons.home),
-            title: const Text('ホーム'),
-            onTap: () => Navigator.pushNamed(context, '/'),
-          ),
-          ListTile(
+            enabled: isLoggedIn,
             leading: const Icon(Icons.sports_handball),
             title: const Text('連打'),
-            onTap: () => Navigator.pushNamed(context, '/home'),
+            onTap: isLoggedIn ? () => Navigator.pushNamed(context, '/home') : null,
           ),
           ListTile(
+            enabled: isLoggedIn,
             leading: const Icon(Icons.leaderboard),
             title: const Text('ランキング'),
-            onTap: () => Navigator.pushNamed(context, '/ranking'),
+            onTap: isLoggedIn ? () => Navigator.pushNamed(context, '/ranking') : null,
           ),
           ListTile(
-            enabled: isAdmin,
+            enabled: isLoggedIn && isAdmin,
             leading: const Icon(Icons.admin_panel_settings),
             title: const Text('ユーザ管理'),
-            onTap: isAdmin ? () => Navigator.pushNamed(context, '/admin') : null,
+            onTap: isLoggedIn && isAdmin ? () => Navigator.pushNamed(context, '/admin') : null,
           ),
           const Divider(),
           ListTile(

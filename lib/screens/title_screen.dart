@@ -1,32 +1,38 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-import '../widgets/app_scaffold.dart';
-
-class TitleScreen extends StatelessWidget {
+class TitleScreen extends StatefulWidget {
   const TitleScreen({super.key});
 
   @override
+  State<TitleScreen> createState() => _TitleScreenState();
+}
+
+class _TitleScreenState extends State<TitleScreen> {
+  @override
+  void initState() {
+    super.initState();
+
+    // 3秒後に自動遷移
+    Timer(const Duration(seconds: 3), () {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        Navigator.pushReplacementNamed(context, '/login');
+      } else {
+        Navigator.pushReplacementNamed(context, '/home');
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return AppScaffold(
-      title: '18QUAD',
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.warning_rounded, size: 100, color: Colors.white),
-            const SizedBox(height: 32),
-            ElevatedButton.icon(
-              onPressed: () => Navigator.pushNamed(context, '/home'),
-              icon: const Icon(Icons.flash_on),
-              label: const Text('連打入力'),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: () => Navigator.pushNamed(context, '/ranking'),
-              icon: const Icon(Icons.bar_chart),
-              label: const Text('ランキング'),
-            ),
-          ],
+    return const Scaffold(
+      backgroundColor: Colors.white,
+      body: Center(
+        child: Image(
+          image: AssetImage('assets/images/logo_18quad_title.png'),
+          height: 120,
         ),
       ),
     );

@@ -61,7 +61,7 @@ class _AccountMenuState extends State<AccountMenu> {
             } else if (value == 'logout') {
               await FirebaseAuth.instance.signOut();
               if (context.mounted) {
-                Navigator.pushNamedAndRemoveUntil(context, '/', (_) => false);
+                Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false); // ← 修正済み
               }
             }
           },
