@@ -1,10 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
-import '../theme/colors.dart';
-import '../theme/text_styles.dart';
+import 'package:intl/intl.dart';
+import '../widgets/app_drawer.dart';
+import '../config/app_config.dart';
 import '../services/firestore_service.dart';
-import '../widgets/app_scaffold.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -15,81 +15,107 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _count = 0;
+  int _localCount = 0;
   bool _isLoading = true;
+  Timer? _syncTimer;
+  String? _userStatus;
+  bool? _isAdmin;
 
   @override
   void initState() {
     super.initState();
-    _redirectIfNotLoggedIn();
+    _loadUserInfo();
     _loadCount();
+    _startSyncTimer();
   }
 
-  Future<void> _redirectIfNotLoggedIn() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      Future.microtask(() => Navigator.pushReplacementNamed(context, '/login'));
-    }
+  Future<void> _loadUserInfo() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    final userData = await FirestoreService.getUserData(uid);
+    setState(() {
+      _userStatus = userData?['status'] ?? 'member';
+      _isAdmin = userData?['isAdmin'] ?? false;
+    });
+  }
+
+  @override
+  void dispose() {
+    _syncTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startSyncTimer() {
+    _syncTimer = Timer.periodic(AppConfig.syncInterval, (_) => _syncToServer());
   }
 
   Future<void> _loadCount() async {
-    setState(() => _isLoading = true);
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
     try {
-      _count = await FirestoreService.getCount(FirestoreService.currentUid);
+      final result = await FirestoreService.getDailyCount(user.uid, DateTime.now());
+      setState(() {
+        _count = result;
+        _isLoading = false;
+      });
     } catch (e) {
-      print('カウント読み込みエラー: $e');
+      setState(() {
+        _count = 0;
+        _isLoading = false;
+      });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('データ読み込みエラー')),
+        SnackBar(content: Text('カウントの読み込みに失敗しました: $e')),
       );
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  Future<void> _incrementCount() async {
+  void _incrementLocalCount() {
     setState(() {
       _count++;
+      _localCount++;
     });
+  }
+
+  Future<void> _syncToServer() async {
+    if (_localCount == 0) return;
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
     try {
-      await FirestoreService.setCount(FirestoreService.currentUid, _count);
+      await FirestoreService.incrementDailyCount(user.uid, _localCount);
+      _localCount = 0;
     } catch (e) {
-      print('カウント保存エラー: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('データ保存エラー')),
-      );
+      debugPrint('同期失敗: $e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-
-    if (user == null) {
+    if (_userStatus == null || _isAdmin == null) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       );
     }
 
-    return AppScaffold(
-      title: '連打',
-      child: Center(
+    return Scaffold(
+      appBar: AppBar(title: const Text('連打')),
+      drawer: AppDrawer(
+        isLoggedIn: true,
+        userStatus: _userStatus!,
+        isAdmin: _isAdmin!,
+      ),
+      body: Center(
         child: _isLoading
             ? const CircularProgressIndicator()
             : Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(
-                    '$_count',
-                    style: AppTextStyles.title.copyWith(fontSize: 60),
-                  ),
+                  Text('$_count', style: const TextStyle(fontSize: 60)),
                   const SizedBox(height: 20),
                   ElevatedButton(
-                    onPressed: _incrementCount,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.button,
-                      foregroundColor: AppColors.textPrimary,
-                      textStyle: AppTextStyles.button.copyWith(fontSize: 24),
-                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                    ),
+                    onPressed: _incrementLocalCount,
                     child: const Text('連打！'),
                   ),
                 ],

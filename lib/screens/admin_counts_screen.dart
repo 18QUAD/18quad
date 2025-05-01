@@ -1,158 +1,121 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../widgets/app_scaffold.dart';
-import '../theme/colors.dart';
-import '../theme/text_styles.dart';
-import '../services/firestore_service.dart';
-import '../services/functions_service.dart'; // Cloud Functions呼び出し用
 
-class AdminCountsScreen extends StatefulWidget {
+class AdminCountsScreen extends StatelessWidget {
   const AdminCountsScreen({super.key});
 
-  @override
-  State<AdminCountsScreen> createState() => _AdminCountsScreenState();
-}
+  final String adminEmail = 'admin@example.com'; // 管理者メールをここに設定
 
-class _AdminCountsScreenState extends State<AdminCountsScreen> {
   @override
   Widget build(BuildContext context) {
-    return AppScaffold(
-      title: 'ユーザー管理',
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.add),
-          onPressed: _addUser,
+    final currentUser = FirebaseAuth.instance.currentUser;
+
+    if (currentUser == null || currentUser.email != adminEmail) {
+      return AppScaffold(
+        title: 'アクセス拒否',
+        child: const Center(
+          child: Text(
+            'この画面にアクセスする権限がありません',
+            style: TextStyle(color: Colors.redAccent),
+          ),
         ),
-      ],
-      child: StreamBuilder(
-        stream: FirestoreService.getUsersStream(), // usersコレクションを購読
+      );
+    }
+
+    final countsRef = FirebaseFirestore.instance.collection('counts');
+    final usersRef = FirebaseFirestore.instance.collection('users');
+
+    return AppScaffold(
+      title: '全ユーザー連打数一覧',
+      child: FutureBuilder<List<Map<String, dynamic>>>(
+        future: _loadCountsWithUsers(countsRef, usersRef),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return const Center(child: Text('エラーが発生しました'));
-          }
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(child: Text('データが存在しません'));
+          if (!snapshot.hasData) {
+            return const Center(
+              child: CircularProgressIndicator(color: Colors.pink),
+            );
           }
 
-          final docs = snapshot.data!.docs;
+          final rows = snapshot.data!;
 
-          return ListView.builder(
-            itemCount: docs.length,
-            itemBuilder: (context, index) {
-              final doc = docs[index];
-              final uid = doc.id;
-              final data = doc.data();
-              final displayName = data['displayName'] ?? '名無し';
-              final email = data['email'] ?? '不明';
-              final iconUrl = data['iconUrl'];
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: DataTable(
+              headingRowColor: MaterialStateColor.resolveWith(
+                  (states) => Colors.pink.shade700),
+              dataRowColor: MaterialStateColor.resolveWith(
+                  (states) => Colors.grey.shade900),
+              headingTextStyle: const TextStyle(
+                  color: Colors.white, fontWeight: FontWeight.bold),
+              dataTextStyle: const TextStyle(color: Colors.white),
+              columns: const [
+                DataColumn(label: Text('順位')),
+                DataColumn(label: Text('名前')),
+                DataColumn(label: Text('カウント')),
+                DataColumn(label: Text('e-mail')),
+                DataColumn(label: Text('UID')),
+                DataColumn(label: Text('リセット')),
+              ],
+              rows: List.generate(rows.length, (index) {
+                final row = rows[index];
+                final uid = row['uid'];
+                final count = row['count'];
+                final displayName = row['displayName'] ?? '不明';
+                final email = row['email'] ?? '不明';
 
-              return ListTile(
-                leading: CircleAvatar(
-                  backgroundImage: iconUrl != null
-                      ? NetworkImage(iconUrl)
-                      : const AssetImage('assets/icons/default.png') as ImageProvider,
-                ),
-                title: Text(displayName, style: AppTextStyles.body),
-                subtitle: Text('$email\nUID: ${uid.substring(0, 6)}...', style: AppTextStyles.label),
-                isThreeLine: true,
-                trailing: PopupMenuButton<String>(
-                  onSelected: (value) async {
-                    if (value == 'reset') {
-                      await FirestoreService.resetCount(uid);
-                    } else if (value == 'edit') {
-                      await _editUser(uid, displayName);
-                    } else if (value == 'delete') {
-                      await FunctionsService.deleteUserFully(uid); // 🔥ここで完全削除！
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    const PopupMenuItem(value: 'reset', child: Text('カウントリセット')),
-                    const PopupMenuItem(value: 'edit', child: Text('ユーザー編集')),
-                    const PopupMenuItem(value: 'delete', child: Text('ユーザー削除')),
-                  ],
-                ),
-              );
-            },
+                return DataRow(cells: [
+                  DataCell(Text('${index + 1}')),
+                  DataCell(Text(displayName)),
+                  DataCell(Text('$count')),
+                  DataCell(Text(email)),
+                  DataCell(Text(uid.substring(0, 4) + '...' + uid.substring(uid.length - 2))),
+                  DataCell(IconButton(
+                    icon: const Icon(Icons.restart_alt, color: Colors.orangeAccent),
+                    onPressed: () async {
+                      await countsRef.doc(uid).set({'count': 0}, SetOptions(merge: true));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('「$uid」のカウントをリセットしました'),
+                          backgroundColor: Colors.pink,
+                        ),
+                      );
+                    },
+                  )),
+                ]);
+              }),
+            ),
           );
         },
       ),
     );
   }
 
-  Future<void> _editUser(String uid, String currentName) async {
-    final controller = TextEditingController(text: currentName);
-    await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('ユーザー名を編集'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(labelText: '新しい表示名'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('キャンセル'),
-          ),
-          TextButton(
-            onPressed: () async {
-              await FirestoreService.updateDisplayName(uid, controller.text);
-              if (mounted) Navigator.pop(context);
-            },
-            child: const Text('保存'),
-          ),
-        ],
-      ),
-    );
-  }
+  Future<List<Map<String, dynamic>>> _loadCountsWithUsers(
+    CollectionReference countsRef,
+    CollectionReference usersRef,
+  ) async {
+    final countsSnapshot = await countsRef.orderBy('count', descending: true).get();
+    final usersSnapshot = await usersRef.get();
 
-  Future<void> _addUser() async {
-    final emailController = TextEditingController();
-    final nameController = TextEditingController();
-    final passwordController = TextEditingController();
+    final userMap = {
+      for (var doc in usersSnapshot.docs) doc.id: doc.data() as Map<String, dynamic>
+    };
 
-    await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('新規ユーザー追加'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: emailController,
-              decoration: const InputDecoration(labelText: 'メールアドレス'),
-            ),
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(labelText: '表示名'),
-            ),
-            TextField(
-              controller: passwordController,
-              decoration: const InputDecoration(labelText: '初期パスワード'),
-              obscureText: true,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('キャンセル'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              await FunctionsService.createUser(
-                email: emailController.text.trim(),
-                password: passwordController.text.trim(),
-                displayName: nameController.text.trim(),
-              );
-            },
-            child: const Text('追加'),
-          ),
-        ],
-      ),
-    );
+    final rows = countsSnapshot.docs.map((doc) {
+      final uid = doc.id;
+      final count = doc['count'] ?? 0;
+      final userData = userMap[uid] ?? {};
+
+      return {
+        'uid': uid,
+        'count': count,
+        'displayName': userData['displayName'],
+        'email': userData['email'],
+      };
+    }).toList();
+
+    return rows;
   }
 }

@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:intl/intl.dart';
 
 class FirestoreService {
   static final _db = FirebaseFirestore.instance;
@@ -11,42 +12,39 @@ class FirestoreService {
   static String get currentUid => _auth.currentUser!.uid;
 
   // ----------------------------
-  // カウント関連
+  // 日別カウント関連（daily_counts）
   // ----------------------------
 
-  static Future<int> getCount(String uid) async {
-    final doc = await _db
-        .collection('users')
-        .doc(uid)
-        .collection('counts')
-        .doc(uid)
-        .get();
-    final data = doc.data();
-    return data?['count'] ?? 0;
+  static Future<int> getDailyCount(String uid, DateTime date) async {
+    final dateStr = DateFormat('yyyy-MM-dd').format(date);
+    final docId = '${uid}_$dateStr';
+    final doc = await _db.collection('daily_counts').doc(docId).get();
+    return doc.data()?['count'] ?? 0;
   }
 
-  static Future<void> setCount(String uid, int count) async {
-    await _db
-        .collection('users')
-        .doc(uid)
-        .collection('counts')
-        .doc(uid)
-        .set({'count': count});
+  static Future<void> incrementDailyCount(String uid, int delta) async {
+    final now = DateTime.now();
+    final dateStr = DateFormat('yyyy-MM-dd').format(now);
+    final monthStr = DateFormat('yyyy-MM').format(now);
+    final yearStr = DateFormat('yyyy').format(now);
+    final docId = '${uid}_$dateStr';
+
+    await _db.collection('daily_counts').doc(docId).set({
+      'uid': uid,
+      'day': dateStr,
+      'month': monthStr,
+      'year': yearStr,
+      'count': FieldValue.increment(delta),
+      'updatedAt': Timestamp.now(),
+    }, SetOptions(merge: true));
   }
 
-  static Future<void> resetCount(String uid) async {
-    await _db
-        .collection('users')
-        .doc(uid)
-        .collection('counts')
-        .doc(uid)
-        .update({'count': 0});
-  }
-
-  static Stream<QuerySnapshot<Map<String, dynamic>>> getRankingStream() {
+  static Stream<QuerySnapshot<Map<String, dynamic>>> getDailyRankingStream(String dayStr) {
     return _db
-        .collectionGroup('counts')
+        .collection('daily_counts')
+        .where('day', isEqualTo: dayStr)
         .orderBy('count', descending: true)
+        .limit(100)
         .snapshots();
   }
 
@@ -65,15 +63,6 @@ class FirestoreService {
 
   static Future<void> deleteUserData(String uid) async {
     await _db.collection('users').doc(uid).delete();
-  }
-
-  static Future<void> deleteCountData(String uid) async {
-    await _db
-        .collection('users')
-        .doc(uid)
-        .collection('counts')
-        .doc(uid)
-        .delete();
   }
 
   static Stream<QuerySnapshot<Map<String, dynamic>>> getUsersStream() {

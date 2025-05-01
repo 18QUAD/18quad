@@ -1,11 +1,7 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../widgets/app_scaffold.dart';
-import '../services/firestore_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../widgets/app_drawer.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -15,168 +11,123 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  final TextEditingController _displayNameController = TextEditingController();
-  Uint8List? _selectedImage;
-  String? _currentIconUrl;
-  String? _groupName;
-  String? _status;
-  bool _isLoading = false;
+  final _nameController = TextEditingController();
+  final _passwordController = TextEditingController();
+  String _iconUrl = '';
+  String? _userStatus;
+  bool? _isAdmin;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadUserData();
+    _loadUserInfo();
   }
 
-  @override
-  void dispose() {
-    _displayNameController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _loadUserData() async {
+  Future<void> _loadUserInfo() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-    if (doc.exists) {
-      final data = doc.data();
-      if (data != null) {
-        final groupId = data['groupId'] ?? '';
-        String? groupName;
-        if (groupId.isNotEmpty) {
-          final groupData = await FirestoreService.getGroupData(groupId);
-          groupName = groupData?['name'];
-        }
-
-        setState(() {
-          _displayNameController.text = data['displayName'] ?? '';
-          _currentIconUrl = data['iconUrl'];
-          _groupName = groupName ?? '（未所属）';
-          _status = data['status'] ?? 'none';
-        });
-      }
-    }
-  }
-
-  Future<void> _pickImage() async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      final bytes = await pickedFile.readAsBytes();
-      setState(() {
-        _selectedImage = bytes;
-      });
-    }
-  }
-
-  Future<String?> _uploadImage() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null || _selectedImage == null) return null;
-
-    final storageRef = FirebaseStorage.instance.ref().child('user_icons/${user.uid}.png');
-    await storageRef.putData(_selectedImage!);
-    return await storageRef.getDownloadURL();
-  }
-
-  Future<void> _saveChanges() async {
-    setState(() {
-      _isLoading = true;
-    });
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
-        throw Exception('ユーザーが見つかりません');
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      final userData = userDoc.data();
+      if (userData != null) {
+        _nameController.text = userData['displayName'] ?? '';
+        _iconUrl = userData['iconUrl'] ?? '';
+        _userStatus = userData['status'] ?? 'member';
+        _isAdmin = userData['isAdmin'] ?? false;
       }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('ユーザ情報の取得に失敗しました: $e')),
+      );
+    }
 
-      String? iconUrl;
-      if (_selectedImage != null) {
-        iconUrl = await _uploadImage();
-      }
+    setState(() {
+      _isLoading = false;
+    });
+  }
 
-      final updateData = <String, dynamic>{};
-      if (_displayNameController.text.isNotEmpty) {
-        updateData['displayName'] = _displayNameController.text;
-        await user.updateDisplayName(_displayNameController.text);
-      }
-      if (iconUrl != null) {
-        updateData['iconUrl'] = iconUrl;
-      }
+  Future<void> _saveSettings() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
 
-      if (updateData.isNotEmpty) {
-        await FirebaseFirestore.instance.collection('users').doc(user.uid).update(updateData);
+    final name = _nameController.text.trim();
+    final password = _passwordController.text;
+
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+        'displayName': name,
+      });
+
+      if (password.isNotEmpty) {
+        await user.updatePassword(password);
       }
 
       if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('保存しました')),
+        );
         Navigator.pop(context);
       }
     } catch (e) {
-      print('保存エラー: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('保存に失敗しました')),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('保存に失敗しました: $e')),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return AppScaffold(
-      title: '設定',
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+    if (_userStatus == null || _isAdmin == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('ユーザー設定')),
+      drawer: AppDrawer(
+        isLoggedIn: true,
+        userStatus: _userStatus!,
+        isAdmin: _isAdmin!,
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
                 children: [
-                  Center(
-                    child: GestureDetector(
-                      onTap: _pickImage,
-                      child: CircleAvatar(
-                        radius: 50,
-                        backgroundImage: _selectedImage != null
-                            ? MemoryImage(_selectedImage!)
-                            : (_currentIconUrl != null
-                                ? NetworkImage(_currentIconUrl!) as ImageProvider
-                                : null),
-                        child: (_selectedImage == null && _currentIconUrl == null)
-                            ? const Icon(Icons.add_a_photo, size: 40)
-                            : null,
-                      ),
+                  if (_iconUrl.isNotEmpty)
+                    CircleAvatar(
+                      radius: 40,
+                      backgroundImage: NetworkImage(_iconUrl),
                     ),
-                  ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 10),
                   TextField(
-                    controller: _displayNameController,
+                    controller: _nameController,
                     decoration: const InputDecoration(labelText: '表示名'),
                   ),
+                  TextField(
+                    controller: _passwordController,
+                    decoration: const InputDecoration(labelText: '新しいパスワード（空欄で変更なし）'),
+                    obscureText: true,
+                  ),
                   const SizedBox(height: 20),
-                  if (_groupName != null) ...[
-                    Text('所属グループ: $_groupName', style: const TextStyle(fontSize: 16)),
-                    const SizedBox(height: 8),
-                  ],
-                  if (_status != null) ...[
-                    Text('ステータス: $_status', style: const TextStyle(fontSize: 16)),
-                    const SizedBox(height: 8),
-                  ],
-                  const SizedBox(height: 20),
-                  Center(
-                    child: ElevatedButton(
-                      onPressed: _saveChanges,
-                      child: const Text('保存'),
-                    ),
+                  ElevatedButton(
+                    onPressed: _saveSettings,
+                    child: const Text('保存'),
                   ),
                 ],
               ),
-      ),
+            ),
     );
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 }

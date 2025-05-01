@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
 
 import '../widgets/app_scaffold.dart';
 import '../services/firestore_service.dart';
@@ -16,6 +17,7 @@ class RankingScreen extends StatefulWidget {
 class _RankingScreenState extends State<RankingScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   String? _myGroupId;
+  String _selectedDate = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
   @override
   void initState() {
@@ -46,6 +48,7 @@ class _RankingScreenState extends State<RankingScreen> with SingleTickerProvider
       title: 'ランキング',
       child: Column(
         children: [
+          _buildDateSelector(),
           TabBar(
             controller: _tabController,
             tabs: const [
@@ -67,20 +70,58 @@ class _RankingScreenState extends State<RankingScreen> with SingleTickerProvider
     );
   }
 
+  Widget _buildDateSelector() {
+    return Padding(
+      padding: const EdgeInsets.all(8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Text('日付選択: '),
+          ElevatedButton(
+            onPressed: () async {
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: DateTime.parse(_selectedDate),
+                firstDate: DateTime(2024),
+                lastDate: DateTime.now(),
+              );
+              if (picked != null) {
+                setState(() {
+                  _selectedDate = DateFormat('yyyy-MM-dd').format(picked);
+                });
+              }
+            },
+            child: Text(_selectedDate),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildIndividualRanking() {
     return StreamBuilder(
-      stream: FirestoreService.getRankingStream(),
+      stream: FirestoreService.getDailyRankingStream(_selectedDate),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-        final docs = snapshot.data!.docs;
+        if (snapshot.hasError) {
+          return const Center(child: Text('ランキングの取得に失敗しました'));
+        }
+
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final docs = snapshot.data?.docs ?? [];
+        if (docs.isEmpty) {
+          return const Center(child: Text('まだ誰も連打していません'));
+        }
+
         final currentUid = FirebaseAuth.instance.currentUser?.uid;
 
         return ListView.builder(
           itemCount: docs.length,
           itemBuilder: (context, index) {
             final doc = docs[index];
-            final parentPath = doc.reference.parent.parent;
-            final uid = parentPath?.id ?? '';
+            final uid = doc['uid'] ?? '';
             final count = doc['count'] ?? 0;
             final rank = index + 1;
 
@@ -132,93 +173,8 @@ class _RankingScreenState extends State<RankingScreen> with SingleTickerProvider
   }
 
   Widget _buildGroupRanking() {
-    return FutureBuilder(
-      future: _fetchGroupRankings(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-        final groupList = snapshot.data!;
-
-        return ListView.builder(
-          itemCount: groupList.length,
-          itemBuilder: (context, index) {
-            final rank = index + 1;
-            final group = groupList[index];
-            final isMyGroup = group['groupId'] == _myGroupId;
-
-            return Container(
-              color: isMyGroup ? Colors.yellow[100] : null,
-              child: ListTile(
-                leading: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('$rank.', style: const TextStyle(fontSize: 16)),
-                    const SizedBox(width: 8),
-                    CircleAvatar(
-                      backgroundImage: group['iconUrl'] != null
-                          ? NetworkImage(group['iconUrl'])
-                          : const AssetImage('assets/icons/default.png') as ImageProvider,
-                    ),
-                  ],
-                ),
-                title: Text(group['name'], style: AppTextStyles.body),
-                subtitle: Text('人数: ${group['memberCount']}　平均: ${group['avg'].toStringAsFixed(1)}'),
-                trailing: Text('${group['total']}', style: AppTextStyles.label),
-              ),
-            );
-          },
-        );
-      },
+    return const Center(
+      child: Text('グループランキングは今後のアップデートで対応予定です'),
     );
-  }
-
-  Future<List<Map<String, dynamic>>> _fetchGroupRankings() async {
-    final userSnapshot = await FirebaseFirestore.instance.collection('users').get();
-    final groupMap = <String, List<int>>{};
-    final groupMeta = <String, Map<String, dynamic>>{};
-
-    for (var userDoc in userSnapshot.docs) {
-      final uid = userDoc.id;
-      final groupId = userDoc.data()['groupId'];
-      if (groupId == null || groupId == '') continue;
-
-      final countDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .collection('counts')
-          .doc(uid)
-          .get();
-      final count = countDoc.data()?['count'] ?? 0;
-
-      groupMap.putIfAbsent(groupId, () => []).add(count);
-      groupMeta[groupId] = {
-        'name': '',
-        'iconUrl': '',
-      };
-    }
-
-    for (var gid in groupMap.keys) {
-      final groupDoc = await FirebaseFirestore.instance.collection('groups').doc(gid).get();
-      groupMeta[gid] = {
-        'name': groupDoc.data()?['name'] ?? '不明なグループ',
-        'iconUrl': groupDoc.data()?['iconUrl'],
-      };
-    }
-
-    final result = groupMap.entries.map((e) {
-      final counts = e.value;
-      final total = counts.fold(0, (sum, x) => sum + x);
-      final avg = total / counts.length;
-      return {
-        'groupId': e.key,
-        'total': total,
-        'avg': avg,
-        'memberCount': counts.length,
-        'name': groupMeta[e.key]?['name'] ?? '不明',
-        'iconUrl': groupMeta[e.key]?['iconUrl'],
-      };
-    }).toList();
-
-    result.sort((a, b) => b['total'].compareTo(a['total']));
-    return result;
   }
 }
