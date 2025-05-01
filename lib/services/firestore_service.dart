@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'dart:typed_data';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -66,10 +67,7 @@ class FirestoreService {
   }
 
   static Stream<QuerySnapshot<Map<String, dynamic>>> getUsersStream() {
-    return _db
-        .collection('users')
-        .orderBy('createdAt', descending: false)
-        .snapshots();
+    return _db.collection('users').orderBy('createdAt', descending: false).snapshots();
   }
 
   // ----------------------------
@@ -203,11 +201,7 @@ class FirestoreService {
     required String inviteCode,
     required String message,
   }) async {
-    await _db
-        .collection('users')
-        .doc(requesterId)
-        .collection('group_requests')
-        .add({
+    await _db.collection('users').doc(requesterId).collection('group_requests').add({
       'requesterId': requesterId,
       'groupId': groupId,
       'inviteCode': inviteCode,
@@ -215,6 +209,52 @@ class FirestoreService {
       'status': 'pending',
       'createdAt': Timestamp.now(),
     });
+  }
+
+  // ----------------------------
+  // ランキング取得（静的）
+  // ----------------------------
+
+  static Future<List<Map<String, dynamic>>> getRankingList(
+    String type,
+    String day,
+    String month,
+    String year,
+  ) async {
+    late QuerySnapshot snapshot;
+
+    if (type == 'day') {
+      snapshot = await _db
+          .collection('daily_counts')
+          .where('day', isEqualTo: day)
+          .orderBy('count', descending: true)
+          .limit(100)
+          .get();
+    } else if (type == 'month') {
+      snapshot = await _db
+          .collection('monthly_counts_users')
+          .where('month', isEqualTo: month)
+          .orderBy('count', descending: true)
+          .limit(100)
+          .get();
+    } else if (type == 'year') {
+      snapshot = await _db
+          .collection('yearly_counts_users')
+          .where('year', isEqualTo: year)
+          .orderBy('count', descending: true)
+          .limit(100)
+          .get();
+    } else if (type == 'total') {
+      snapshot = await _db
+          .collection('total_counts_users')
+          .orderBy('count', descending: true)
+          .limit(100)
+          .get();
+    } else {
+      return [];
+    }
+
+    return snapshot.docs.map((doc) => doc.data() as Map<String, dynamic>).toList();
   }
 
   static String _generateInviteCode() {

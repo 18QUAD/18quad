@@ -18,6 +18,9 @@ class _RankingScreenState extends State<RankingScreen> with SingleTickerProvider
   late TabController _tabController;
   String? _myGroupId;
   String _selectedDate = DateFormat('yyyy-MM-dd').format(DateTime.now());
+  String _selectedMonth = DateFormat('yyyy-MM').format(DateTime.now());
+  String _selectedYear = DateFormat('yyyy').format(DateTime.now());
+  String _rankingType = 'day'; // 'day', 'month', 'year', 'total'
 
   @override
   void initState() {
@@ -48,6 +51,7 @@ class _RankingScreenState extends State<RankingScreen> with SingleTickerProvider
       title: 'ランキング',
       child: Column(
         children: [
+          _buildModeSelector(),
           _buildDateSelector(),
           TabBar(
             controller: _tabController,
@@ -70,51 +74,110 @@ class _RankingScreenState extends State<RankingScreen> with SingleTickerProvider
     );
   }
 
-  Widget _buildDateSelector() {
-    return Padding(
-      padding: const EdgeInsets.all(8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Text('日付選択: '),
-          ElevatedButton(
-            onPressed: () async {
-              final picked = await showDatePicker(
-                context: context,
-                initialDate: DateTime.parse(_selectedDate),
-                firstDate: DateTime(2024),
-                lastDate: DateTime.now(),
-              );
-              if (picked != null) {
-                setState(() {
-                  _selectedDate = DateFormat('yyyy-MM-dd').format(picked);
-                });
-              }
-            },
-            child: Text(_selectedDate),
-          ),
-        ],
-      ),
+  Widget _buildModeSelector() {
+    return DropdownButton<String>(
+      value: _rankingType,
+      onChanged: (value) {
+        if (value != null) {
+          setState(() => _rankingType = value);
+        }
+      },
+      items: const [
+        DropdownMenuItem(value: 'day', child: Text('日別')),
+        DropdownMenuItem(value: 'month', child: Text('月別')),
+        DropdownMenuItem(value: 'year', child: Text('年別')),
+        DropdownMenuItem(value: 'total', child: Text('総数')),
+      ],
     );
   }
 
-  Widget _buildIndividualRanking() {
-    return StreamBuilder(
-      stream: FirestoreService.getDailyRankingStream(_selectedDate),
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return const Center(child: Text('ランキングの取得に失敗しました'));
-        }
+  Widget _buildDateSelector() {
+    if (_rankingType == 'day') {
+      return Padding(
+        padding: const EdgeInsets.all(8),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('日付選択: '),
+            ElevatedButton(
+              onPressed: () async {
+                final picked = await showDatePicker(
+                  context: context,
+                  initialDate: DateTime.parse(_selectedDate),
+                  firstDate: DateTime(2024),
+                  lastDate: DateTime.now(),
+                );
+                if (picked != null) {
+                  setState(() {
+                    _selectedDate = DateFormat('yyyy-MM-dd').format(picked);
+                  });
+                }
+              },
+              child: Text(_selectedDate),
+            ),
+          ],
+        ),
+      );
+    } else if (_rankingType == 'month') {
+      return Padding(
+        padding: const EdgeInsets.all(8),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('月選択: '),
+            DropdownButton<String>(
+              value: _selectedMonth,
+              onChanged: (value) => setState(() => _selectedMonth = value!),
+              items: List.generate(12, (i) {
+                final month = i + 1;
+                final date = DateTime(DateTime.now().year, month);
+                return DropdownMenuItem(
+                  value: DateFormat('yyyy-MM').format(date),
+                  child: Text(DateFormat('yyyy年MM月').format(date)),
+                );
+              }),
+            ),
+          ],
+        ),
+      );
+    } else if (_rankingType == 'year') {
+      return Padding(
+        padding: const EdgeInsets.all(8),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('年選択: '),
+            DropdownButton<String>(
+              value: _selectedYear,
+              onChanged: (value) => setState(() => _selectedYear = value!),
+              items: List.generate(5, (i) {
+                final year = DateTime.now().year - i;
+                return DropdownMenuItem(
+                  value: year.toString(),
+                  child: Text('$year年'),
+                );
+              }),
+            ),
+          ],
+        ),
+      );
+    } else {
+      return const SizedBox.shrink();
+    }
+  }
 
+  Widget _buildIndividualRanking() {
+    return FutureBuilder(
+      future: FirestoreService.getRankingList(_rankingType, _selectedDate, _selectedMonth, _selectedYear),
+      builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
-
-        final docs = snapshot.data?.docs ?? [];
-        if (docs.isEmpty) {
-          return const Center(child: Text('まだ誰も連打していません'));
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const Center(child: Text('データがありません'));
         }
 
+        final docs = snapshot.data!;
         final currentUid = FirebaseAuth.instance.currentUser?.uid;
 
         return ListView.builder(
@@ -173,8 +236,6 @@ class _RankingScreenState extends State<RankingScreen> with SingleTickerProvider
   }
 
   Widget _buildGroupRanking() {
-    return const Center(
-      child: Text('グループランキングは今後のアップデートで対応予定です'),
-    );
+    return const Center(child: Text('グループランキングは今後のアップデートで対応予定です'));
   }
 }
