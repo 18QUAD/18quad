@@ -24,7 +24,7 @@ class AdminCountsScreen extends StatelessWidget {
       );
     }
 
-    final countsRef = FirebaseFirestore.instance.collection('counts');
+    final countsRef = FirebaseFirestore.instance.collection('daily_counts_users_total');
     final usersRef = FirebaseFirestore.instance.collection('users');
 
     return AppScaffold(
@@ -70,11 +70,11 @@ class AdminCountsScreen extends StatelessWidget {
                   DataCell(Text(displayName)),
                   DataCell(Text('$count')),
                   DataCell(Text(email)),
-                  DataCell(Text(uid.substring(0, 4) + '...' + uid.substring(uid.length - 2))),
+                  DataCell(Text('${uid.substring(0, 4)}...${uid.substring(uid.length - 2)}')),
                   DataCell(IconButton(
                     icon: const Icon(Icons.restart_alt, color: Colors.orangeAccent),
                     onPressed: () async {
-                      await countsRef.doc(uid).set({'count': 0}, SetOptions(merge: true));
+                      await _resetUserCounts(uid);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text('「$uid」のカウントをリセットしました'),
@@ -90,6 +90,25 @@ class AdminCountsScreen extends StatelessWidget {
         },
       ),
     );
+  }
+
+  Future<void> _resetUserCounts(String uid) async {
+    final batch = FirebaseFirestore.instance.batch();
+    final countsQuery = await FirebaseFirestore.instance
+        .collection('daily_counts')
+        .where('uid', isEqualTo: uid)
+        .get();
+
+    for (var doc in countsQuery.docs) {
+      batch.delete(doc.reference);
+    }
+
+    final totalDoc = FirebaseFirestore.instance
+        .collection('daily_counts_users_total')
+        .doc(uid);
+    batch.delete(totalDoc);
+
+    await batch.commit();
   }
 
   Future<List<Map<String, dynamic>>> _loadCountsWithUsers(

@@ -14,8 +14,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _count = 0;
-  int _localCount = 0;
+  int _count = 0;         // 総カウント（サーバ記録分＋ローカル加算分）
+  int _localCount = 0;    // 同期待ちのローカル加算分
   bool _isLoading = true;
   Timer? _syncTimer;
   String? _userStatus;
@@ -54,9 +54,9 @@ class _HomeScreenState extends State<HomeScreen> {
     if (user == null) return;
 
     try {
-      final result = await FirestoreService.getDailyCount(user.uid, DateTime.now());
+      final serverCount = await FirestoreService.getDailyCount(user.uid, DateTime.now());
       setState(() {
-        _count = result;
+        _count = serverCount;
         _isLoading = false;
       });
     } catch (e) {
@@ -85,7 +85,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
     try {
       await FirestoreService.incrementDailyCount(user.uid, _localCount);
-      _localCount = 0;
+      setState(() {
+        _localCount = 0;
+      });
     } catch (e) {
       debugPrint('同期失敗: $e');
     }

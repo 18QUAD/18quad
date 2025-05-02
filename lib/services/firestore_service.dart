@@ -142,9 +142,7 @@ class FirestoreService {
         try {
           final filePath = Uri.decodeFull(oldIconUrl.split('/o/')[1].split('?')[0]);
           await FirebaseStorage.instance.ref().child(filePath).delete();
-          print('🧹 旧グループアイコン削除完了: $filePath');
         } catch (e) {
-          print('⚠️ 旧グループアイコン削除失敗: $e');
         }
       }
 
@@ -181,14 +179,11 @@ class FirestoreService {
       try {
         final filePath = Uri.decodeFull(iconUrl.split('/o/')[1].split('?')[0]);
         await FirebaseStorage.instance.ref().child(filePath).delete();
-        print('🧹 グループアイコン削除完了: $filePath');
       } catch (e) {
-        print('⚠️ グループアイコン削除失敗: $e');
       }
     }
 
     await docRef.delete();
-    print('✅ グループ $groupId を削除しました');
   }
 
   // ----------------------------
