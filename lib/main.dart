@@ -12,6 +12,12 @@ import 'screens/settings_screen.dart';
 import 'screens/admin_counts_screen.dart';
 import 'screens/title_screen.dart';
 import 'screens/ranking_screen.dart';
+import 'screens/group_create_screen.dart';
+import 'screens/group_manage_screen.dart';
+import 'screens/group_request_screen.dart';
+import 'screens/admin_group_requests_screen.dart'; // ★ 追加
+
+import 'theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,10 +37,7 @@ class MyApp extends StatelessWidget {
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         title: '18QUAD',
-        theme: ThemeData.dark().copyWith(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.pink),
-          useMaterial3: true,
-        ),
+        theme: AppTheme.light,
         initialRoute: '/',
         routes: {
           '/': (context) => const TitleScreen(),
@@ -44,6 +47,10 @@ class MyApp extends StatelessWidget {
           '/settings': (context) => const SettingsScreen(),
           '/admin': (context) => const AdminCountsScreen(),
           '/ranking': (context) => const RankingScreen(),
+          '/groupCreate': (context) => const GroupCreateScreen(),
+          '/groupManage': (context) => const GroupManageScreen(),
+          '/groupRequest': (context) => const GroupRequestScreen(),
+          '/adminGroupRequests': (context) => const AdminGroupRequestsScreen(), // ★ 追加済み
         },
       ),
     );

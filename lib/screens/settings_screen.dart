@@ -13,6 +13,9 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final _nameController = TextEditingController();
   final _passwordController = TextEditingController();
+  String _iconUrl = '';
+  String? _userStatus;
+  bool? _isAdmin;
   bool _isLoading = true;
 
   @override
@@ -22,47 +25,85 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _loadUserInfo() async {
-    final uid = FirebaseAuth.instance.currentUser!.uid;
-    final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-    final userData = userDoc.data();
-    if (userData != null) {
-      _nameController.text = userData['displayName'] ?? '';
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      final userData = userDoc.data();
+      if (userData != null) {
+        _nameController.text = userData['displayName'] ?? '';
+        _iconUrl = userData['iconUrl'] ?? '';
+        _userStatus = userData['status'] ?? 'member';
+        _isAdmin = userData['isAdmin'] ?? false;
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('ユーザ情報の取得に失敗しました: $e')),
+      );
     }
+
     setState(() {
       _isLoading = false;
     });
   }
 
   Future<void> _saveSettings() async {
-    final uid = FirebaseAuth.instance.currentUser!.uid;
-    final name = _nameController.text;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final name = _nameController.text.trim();
     final password = _passwordController.text;
 
-    await FirebaseFirestore.instance.collection('users').doc(uid).update({
-      'displayName': name,
-    });
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+        'displayName': name,
+      });
 
-    if (password.isNotEmpty) {
-      await FirebaseAuth.instance.currentUser!.updatePassword(password);
-    }
+      if (password.isNotEmpty) {
+        await user.updatePassword(password);
+      }
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('保存しました')));
-      Navigator.pop(context); // 前の画面に戻る
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('保存しました')),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('保存に失敗しました: $e')),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_userStatus == null || _isAdmin == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(title: const Text('ユーザー設定')),
-      drawer: const AppDrawer(),
+      drawer: AppDrawer(
+        isLoggedIn: true,
+        userStatus: _userStatus!,
+        isAdmin: _isAdmin!,
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
+                  if (_iconUrl.isNotEmpty)
+                    CircleAvatar(
+                      radius: 40,
+                      backgroundImage: NetworkImage(_iconUrl),
+                    ),
+                  const SizedBox(height: 10),
                   TextField(
                     controller: _nameController,
                     decoration: const InputDecoration(labelText: '表示名'),
@@ -81,5 +122,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
     );
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 }
