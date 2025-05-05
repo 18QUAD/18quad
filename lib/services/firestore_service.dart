@@ -10,7 +10,7 @@ class FirestoreService {
   static final _db = FirebaseFirestore.instance;
   static final _auth = FirebaseAuth.instance;
 
-  static String get currentUid => _auth.currentUser!.uid;
+  static String get currentUid => _auth.currentUser?.uid ?? '';
 
   // ----------------------------
   // 日別カウント関連（daily_counts）
@@ -40,6 +40,24 @@ class FirestoreService {
     }, SetOptions(merge: true));
   }
 
+  static Future<int> getTotalCount(String uid) async {
+    final snapshot = await _db
+        .collection('daily_counts')
+        .where('uid', isEqualTo: uid)
+        .get();
+
+    int total = 0;
+    for (var doc in snapshot.docs) {
+      final count = doc.data()['count'] ?? 0;
+      total += count is int ? count : 0;
+    }
+    return total;
+  }
+
+  static Future<void> incrementCount(String uid) async {
+    await incrementDailyCount(uid, 1);
+  }
+
   static Stream<QuerySnapshot<Map<String, dynamic>>> getDailyRankingStream(String dayStr) {
     return _db
         .collection('daily_counts')
@@ -47,6 +65,52 @@ class FirestoreService {
         .orderBy('count', descending: true)
         .limit(100)
         .snapshots();
+  }
+
+  // ----------------------------
+  // ランキング取得（静的）
+  // ----------------------------
+
+  static Future<List<Map<String, dynamic>>> getRankingList(
+    String type,
+    String day,
+    String month,
+    String year,
+  ) async {
+    late QuerySnapshot snapshot;
+
+    if (type == 'daily') {
+      snapshot = await _db
+          .collection('daily_counts')
+          .where('day', isEqualTo: day)
+          .orderBy('count', descending: true)
+          .limit(100)
+          .get();
+    } else if (type == 'monthly') {
+      snapshot = await _db
+          .collection('monthly_counts_users')
+          .where('month', isEqualTo: month)
+          .orderBy('count', descending: true)
+          .limit(100)
+          .get();
+    } else if (type == 'yearly') {
+      snapshot = await _db
+          .collection('yearly_counts_users')
+          .where('year', isEqualTo: year)
+          .orderBy('count', descending: true)
+          .limit(100)
+          .get();
+    } else if (type == 'total') {
+      snapshot = await _db
+          .collection('total_counts_users')
+          .orderBy('count', descending: true)
+          .limit(100)
+          .get();
+    } else {
+      return [];
+    }
+
+    return snapshot.docs.map((doc) => doc.data() as Map<String, dynamic>).toList();
   }
 
   // ----------------------------
@@ -58,8 +122,19 @@ class FirestoreService {
     return doc.data();
   }
 
-  static Future<void> updateDisplayName(String uid, String name) async {
-    await _db.collection('users').doc(uid).update({'displayName': name});
+  static Future<void> updateUser({
+    required String uid,
+    String? displayName,
+    String? groupId,
+    String? status,
+  }) async {
+    final updateData = <String, dynamic>{};
+    if (displayName != null) updateData['displayName'] = displayName;
+    if (groupId != null) updateData['groupId'] = groupId;
+    if (status != null) updateData['status'] = status;
+    if (updateData.isNotEmpty) {
+      await _db.collection('users').doc(uid).update(updateData);
+    }
   }
 
   static Future<void> deleteUserData(String uid) async {
@@ -118,10 +193,7 @@ class FirestoreService {
       'ownerUid': ownerUid,
     });
 
-    await _db.collection('users').doc(uid).update({
-      'groupId': docRef.id,
-      'status': 'manager',
-    });
+    await updateUser(uid: uid, groupId: docRef.id, status: 'manager');
   }
 
   static Future<void> updateGroup({
@@ -142,8 +214,7 @@ class FirestoreService {
         try {
           final filePath = Uri.decodeFull(oldIconUrl.split('/o/')[1].split('?')[0]);
           await FirebaseStorage.instance.ref().child(filePath).delete();
-        } catch (e) {
-        }
+        } catch (e) {}
       }
 
       final fileName = 'group_icons/${DateTime.now().millisecondsSinceEpoch}.png';
@@ -158,10 +229,7 @@ class FirestoreService {
 
   static Future<void> joinGroup(String groupId) async {
     final uid = currentUid;
-    await _db.collection('users').doc(uid).update({
-      'groupId': groupId,
-      'status': 'member',
-    });
+    await updateUser(uid: uid, groupId: groupId, status: 'member');
   }
 
   static Future<void> deleteGroup(String groupId) async {
@@ -179,8 +247,7 @@ class FirestoreService {
       try {
         final filePath = Uri.decodeFull(iconUrl.split('/o/')[1].split('?')[0]);
         await FirebaseStorage.instance.ref().child(filePath).delete();
-      } catch (e) {
-      }
+      } catch (e) {}
     }
 
     await docRef.delete();
@@ -204,52 +271,6 @@ class FirestoreService {
       'status': 'pending',
       'createdAt': Timestamp.now(),
     });
-  }
-
-  // ----------------------------
-  // ランキング取得（静的）
-  // ----------------------------
-
-  static Future<List<Map<String, dynamic>>> getRankingList(
-    String type,
-    String day,
-    String month,
-    String year,
-  ) async {
-    late QuerySnapshot snapshot;
-
-    if (type == 'day') {
-      snapshot = await _db
-          .collection('daily_counts')
-          .where('day', isEqualTo: day)
-          .orderBy('count', descending: true)
-          .limit(100)
-          .get();
-    } else if (type == 'month') {
-      snapshot = await _db
-          .collection('monthly_counts_users')
-          .where('month', isEqualTo: month)
-          .orderBy('count', descending: true)
-          .limit(100)
-          .get();
-    } else if (type == 'year') {
-      snapshot = await _db
-          .collection('yearly_counts_users')
-          .where('year', isEqualTo: year)
-          .orderBy('count', descending: true)
-          .limit(100)
-          .get();
-    } else if (type == 'total') {
-      snapshot = await _db
-          .collection('total_counts_users')
-          .orderBy('count', descending: true)
-          .limit(100)
-          .get();
-    } else {
-      return [];
-    }
-
-    return snapshot.docs.map((doc) => doc.data() as Map<String, dynamic>).toList();
   }
 
   static String _generateInviteCode() {

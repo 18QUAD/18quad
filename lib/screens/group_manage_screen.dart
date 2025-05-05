@@ -1,12 +1,12 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // ★ Clipboard用
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import 'package:provider/provider.dart';
 
 import '../widgets/app_scaffold.dart';
+import '../services/firestore_service.dart';
+import '../providers/user_provider.dart';
 
 class GroupManageScreen extends StatefulWidget {
   const GroupManageScreen({super.key});
@@ -22,7 +22,7 @@ class _GroupManageScreenState extends State<GroupManageScreen> {
   Uint8List? _pickedImageBytes;
   String? _currentIconUrl;
   String? _groupId;
-  String? _inviteCode; // ★ 招待コード用
+  String? _inviteCode;
 
   @override
   void initState() {
@@ -34,23 +34,16 @@ class _GroupManageScreenState extends State<GroupManageScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
-        _showError('ユーザ情報を取得できません。');
-        return;
-      }
-
-      final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-      final userData = userDoc.data();
-      if (userData == null || (userData['groupId'] == null || userData['groupId'].isEmpty)) {
+      final groupId = context.read<UserProvider>().groupId ?? '';
+      if (groupId.isEmpty) {
         if (!mounted) return;
         Navigator.pushReplacementNamed(context, '/groupCreate');
         return;
       }
 
-      _groupId = userData['groupId'];
-      final groupDoc = await FirebaseFirestore.instance.collection('groups').doc(_groupId).get();
-      final groupData = groupDoc.data();
+      _groupId = groupId;
+
+      final groupData = await FirestoreService.getGroupData(groupId);
       if (groupData != null) {
         _nameController.text = groupData['name'] ?? '';
         _descriptionController.text = groupData['description'] ?? '';
@@ -111,7 +104,6 @@ class _GroupManageScreenState extends State<GroupManageScreen> {
                       maxLines: 3,
                     ),
                     const SizedBox(height: 24),
-
                     if (_inviteCode != null) ...[
                       Row(
                         children: [
@@ -124,7 +116,7 @@ class _GroupManageScreenState extends State<GroupManageScreen> {
                           IconButton(
                             icon: const Icon(Icons.copy),
                             onPressed: () {
-                              Clipboard.setData(ClipboardData(text: _inviteCode!)); // ★ここだけ修正！
+                              Clipboard.setData(ClipboardData(text: _inviteCode!));
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(content: Text('招待コードをコピーしました')),
                               );
@@ -133,7 +125,6 @@ class _GroupManageScreenState extends State<GroupManageScreen> {
                         ],
                       ),
                     ],
-
                     const SizedBox(height: 24),
                     Center(
                       child: ElevatedButton(
@@ -175,24 +166,15 @@ class _GroupManageScreenState extends State<GroupManageScreen> {
     setState(() => _isLoading = true);
 
     try {
-      String iconUrl = _currentIconUrl ?? '';
-
-      if (_pickedImageBytes != null) {
-        final fileName = 'group_icons/${DateTime.now().millisecondsSinceEpoch}.png';
-        final ref = FirebaseStorage.instance.ref().child(fileName);
-        await ref.putData(_pickedImageBytes!, SettableMetadata(contentType: 'image/png'));
-        iconUrl = await ref.getDownloadURL();
-      }
-
-      await FirebaseFirestore.instance.collection('groups').doc(_groupId).update({
-        'name': groupName,
-        'description': groupDescription,
-        'iconUrl': iconUrl,
-      });
+      await FirestoreService.updateGroup(
+        groupId: _groupId!,
+        name: groupName,
+        description: groupDescription,
+        iconBytes: _pickedImageBytes,
+      );
 
       if (!mounted) return;
       Navigator.pop(context);
-
     } catch (e) {
       _showError('更新エラー: $e');
     } finally {

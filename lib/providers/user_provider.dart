@@ -11,19 +11,21 @@ class UserProvider with ChangeNotifier {
   String _displayName = '';
   String? _groupId;
   String _status = 'none';
-  String? _iconUrl;
+  String? _iconUrl; // 追加
 
   User? get user => _user;
   bool get isAdmin => _isAdmin;
   String get displayName => _displayName;
   String? get groupId => _groupId;
-  String? get iconUrl => _iconUrl;
+  String? get iconUrl => _iconUrl; // 追加
 
+  // statusフィールド
   String get status => _status;
   bool get isNone => _status == 'none';
   bool get isMember => _status == 'member';
   bool get isManager => _status == 'manager';
 
+  // 旧currentUser相当のgetter
   User? get currentUser => _user;
 
   Future<void> loadUser() async {
@@ -48,7 +50,7 @@ class UserProvider with ChangeNotifier {
     _displayName = '';
     _groupId = null;
     _status = 'none';
-    _iconUrl = null;
+    _iconUrl = null; // 追加
     notifyListeners();
   }
 

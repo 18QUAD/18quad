@@ -1,18 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
 
 import '../widgets/app_scaffold.dart';
 import '../services/firestore_service.dart';
+import '../providers/user_provider.dart';
 
-class GroupRequestScreen extends StatefulWidget {
+class GroupRequestScreen extends StatelessWidget {
   const GroupRequestScreen({super.key});
 
   @override
-  State<GroupRequestScreen> createState() => _GroupRequestScreenState();
+  Widget build(BuildContext context) {
+    return const AppScaffold(
+      title: 'グループ参加リクエスト',
+      child: _GroupRequestBody(),
+    );
+  }
 }
 
-class _GroupRequestScreenState extends State<GroupRequestScreen> {
+class _GroupRequestBody extends StatefulWidget {
+  const _GroupRequestBody();
+
+  @override
+  State<_GroupRequestBody> createState() => _GroupRequestBodyState();
+}
+
+class _GroupRequestBodyState extends State<_GroupRequestBody> {
   final TextEditingController _inviteCodeController = TextEditingController();
   final TextEditingController _messageController = TextEditingController();
 
@@ -22,66 +36,63 @@ class _GroupRequestScreenState extends State<GroupRequestScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return AppScaffold(
-      title: 'グループ参加リクエスト',
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: _inviteCodeController,
+                  decoration: const InputDecoration(
+                    labelText: '招待コードを入力',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Center(
+                  child: ElevatedButton(
+                    onPressed: _searchGroup,
+                    child: const Text('グループを検索'),
+                  ),
+                ),
+                const SizedBox(height: 32),
+                if (_groupData != null) ...[
+                  if (_groupData!['iconUrl'] != null)
+                    Center(
+                      child: Image.network(
+                        _groupData!['iconUrl'],
+                        height: 100,
+                        width: 100,
+                      ),
+                    ),
+                  const SizedBox(height: 16),
+                  Text(
+                    _groupData!['name'] ?? '',
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(_groupData!['description'] ?? ''),
+                  const SizedBox(height: 24),
                   TextField(
-                    controller: _inviteCodeController,
+                    controller: _messageController,
                     decoration: const InputDecoration(
-                      labelText: '招待コードを入力',
+                      labelText: '申請メッセージ（任意）',
                       border: OutlineInputBorder(),
                     ),
+                    maxLines: 2,
                   ),
                   const SizedBox(height: 24),
                   Center(
                     child: ElevatedButton(
-                      onPressed: _searchGroup,
-                      child: const Text('グループを検索'),
+                      onPressed: _sendRequest,
+                      child: const Text('このグループにリクエストする'),
                     ),
                   ),
-                  const SizedBox(height: 32),
-                  if (_groupData != null) ...[
-                    if (_groupData!['iconUrl'] != null)
-                      Center(
-                        child: Image.network(
-                          _groupData!['iconUrl'],
-                          height: 100,
-                          width: 100,
-                        ),
-                      ),
-                    const SizedBox(height: 16),
-                    Text(
-                      _groupData!['name'] ?? '',
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(_groupData!['description'] ?? ''),
-                    const SizedBox(height: 24),
-                    TextField(
-                      controller: _messageController,
-                      decoration: const InputDecoration(
-                        labelText: '申請メッセージ（任意）',
-                        border: OutlineInputBorder(),
-                      ),
-                      maxLines: 2,
-                    ),
-                    const SizedBox(height: 24),
-                    Center(
-                      child: ElevatedButton(
-                        onPressed: _sendRequest,
-                        child: const Text('このグループにリクエストする'),
-                      ),
-                    ),
-                  ],
                 ],
-              ),
-      ),
+              ],
+            ),
     );
   }
 
@@ -126,7 +137,8 @@ class _GroupRequestScreenState extends State<GroupRequestScreen> {
       return;
     }
 
-    final currentUser = FirebaseAuth.instance.currentUser;
+    final userProvider = context.read<UserProvider>();
+    final currentUser = userProvider.currentUser;
     if (currentUser == null) return;
 
     setState(() => _isLoading = true);
@@ -154,7 +166,6 @@ class _GroupRequestScreenState extends State<GroupRequestScreen> {
         message: _messageController.text.trim(),
       );
 
-      // 通知：申請者へ
       final groupName = _groupData?['name'] ?? '不明なグループ';
       await FirebaseFirestore.instance.collection('notifications').add({
         'toUid': currentUser.uid,
@@ -163,7 +174,6 @@ class _GroupRequestScreenState extends State<GroupRequestScreen> {
         'isRead': false,
       });
 
-      // 通知：グループ長へ
       final groupDoc = await FirebaseFirestore.instance.collection('groups').doc(_groupDocId).get();
       final ownerUid = groupDoc.data()?['ownerUid'];
       final requesterName = currentUser.displayName ?? '誰か';

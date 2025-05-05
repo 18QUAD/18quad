@@ -70,7 +70,7 @@ class AppDrawer extends StatelessWidget {
             leading: const Icon(Icons.assignment_ind),
             title: const Text('参加リクエスト管理'),
             onTap: isLoggedIn && userStatus == 'manager'
-                ? () => Navigator.pushNamed(context, '/adminGroupRequests')
+                ? () => Navigator.pushNamed(context, '/adminGroupRequests') // ← 修正済み
                 : null,
           ),
         ],

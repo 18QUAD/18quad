@@ -68,7 +68,7 @@ class AuthService {
     await _auth.signOut();
   }
 
-  /// パスワード更新
+  /// パスワード更新（追加済み）
   static Future<void> updatePassword(String newPassword) async {
     final user = _auth.currentUser;
     if (user != null) {

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import '../widgets/app_drawer.dart';
+import 'package:provider/provider.dart';
+import '../providers/user_provider.dart';
+import '../services/auth_service.dart';
+import '../services/firestore_service.dart';
+import '../widgets/app_scaffold.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -11,123 +13,101 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  final _nameController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  final _displayNameController = TextEditingController();
   final _passwordController = TextEditingController();
-  String _iconUrl = '';
-  String? _userStatus;
-  bool? _isAdmin;
-  bool _isLoading = true;
+  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _loadUserInfo();
-  }
-
-  Future<void> _loadUserInfo() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    try {
-      final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-      final userData = userDoc.data();
-      if (userData != null) {
-        _nameController.text = userData['displayName'] ?? '';
-        _iconUrl = userData['iconUrl'] ?? '';
-        _userStatus = userData['status'] ?? 'member';
-        _isAdmin = userData['isAdmin'] ?? false;
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('ユーザ情報の取得に失敗しました: $e')),
-      );
-    }
-
-    setState(() {
-      _isLoading = false;
-    });
-  }
-
-  Future<void> _saveSettings() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    final name = _nameController.text.trim();
-    final password = _passwordController.text;
-
-    try {
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
-        'displayName': name,
-      });
-
-      if (password.isNotEmpty) {
-        await user.updatePassword(password);
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('保存しました')),
-        );
-        Navigator.pop(context);
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('保存に失敗しました: $e')),
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_userStatus == null || _isAdmin == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    return Scaffold(
-      appBar: AppBar(title: const Text('ユーザー設定')),
-      drawer: AppDrawer(
-        isLoggedIn: true,
-        userStatus: _userStatus!,
-        isAdmin: _isAdmin!,
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  if (_iconUrl.isNotEmpty)
-                    CircleAvatar(
-                      radius: 40,
-                      backgroundImage: NetworkImage(_iconUrl),
-                    ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: _nameController,
-                    decoration: const InputDecoration(labelText: '表示名'),
-                  ),
-                  TextField(
-                    controller: _passwordController,
-                    decoration: const InputDecoration(labelText: '新しいパスワード（空欄で変更なし）'),
-                    obscureText: true,
-                  ),
-                  const SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: _saveSettings,
-                    child: const Text('保存'),
-                  ),
-                ],
-              ),
-            ),
-    );
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    _displayNameController.text = userProvider.displayName;
   }
 
   @override
   void dispose() {
-    _nameController.dispose();
+    _displayNameController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final userProvider = Provider.of<UserProvider>(context);
+    final uid = userProvider.user?.uid ?? '';
+    final iconUrl = userProvider.iconUrl;
+
+    return AppScaffold(
+      title: 'ユーザー設定',
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : Form(
+                key: _formKey,
+                child: ListView(
+                  children: [
+                    if (iconUrl != null && iconUrl.isNotEmpty)
+                      Center(
+                        child: CircleAvatar(
+                          radius: 40,
+                          backgroundImage: NetworkImage(iconUrl),
+                        ),
+                      ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _displayNameController,
+                      decoration: const InputDecoration(labelText: '表示名'),
+                      validator: (value) =>
+                          value == null || value.isEmpty ? '表示名を入力してください' : null,
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _passwordController,
+                      decoration: const InputDecoration(labelText: '新しいパスワード（任意）'),
+                      obscureText: true,
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      onPressed: () async {
+                        if (!_formKey.currentState!.validate()) return;
+                        setState(() => _isLoading = true);
+
+                        try {
+                          await FirestoreService.updateUser(
+                            uid: uid,
+                            displayName: _displayNameController.text,
+                          );
+
+                          final newPassword = _passwordController.text.trim();
+                          if (newPassword.isNotEmpty) {
+                            await AuthService.updatePassword(newPassword);
+                          }
+
+                          await userProvider.loadUser();
+
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('更新しました')),
+                            );
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('更新に失敗しました: $e')),
+                            );
+                          }
+                        } finally {
+                          setState(() => _isLoading = false);
+                        }
+                      },
+                      child: const Text('保存'),
+                    ),
+                  ],
+                ),
+              ),
+      ),
+    );
   }
 }

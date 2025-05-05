@@ -1,41 +1,34 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
+import '../providers/user_provider.dart';
 import '../widgets/app_scaffold.dart';
 
-class AdminCountsScreen extends StatelessWidget {
+class AdminCountsScreen extends StatefulWidget {
   const AdminCountsScreen({super.key});
 
-  final String adminEmail = 'admin@example.com'; // 管理者メールをここに設定
+  @override
+  State<AdminCountsScreen> createState() => _AdminCountsScreenState();
+}
+
+class _AdminCountsScreenState extends State<AdminCountsScreen> {
+  late Future<List<Map<String, dynamic>>> _countsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _countsFuture = _loadCountsWithUsers();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final currentUser = FirebaseAuth.instance.currentUser;
-
-    if (currentUser == null || currentUser.email != adminEmail) {
-      return AppScaffold(
-        title: 'アクセス拒否',
-        child: const Center(
-          child: Text(
-            'この画面にアクセスする権限がありません',
-            style: TextStyle(color: Colors.redAccent),
-          ),
-        ),
-      );
-    }
-
-    final countsRef = FirebaseFirestore.instance.collection('daily_counts_users_total');
-    final usersRef = FirebaseFirestore.instance.collection('users');
-
     return AppScaffold(
-      title: '全ユーザー連打数一覧',
+      title: 'ユーザ管理', // ← タイトルのみ変更
       child: FutureBuilder<List<Map<String, dynamic>>>(
-        future: _loadCountsWithUsers(countsRef, usersRef),
+        future: _countsFuture,
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
-            return const Center(
-              child: CircularProgressIndicator(color: Colors.pink),
-            );
+            return const Center(child: CircularProgressIndicator(color: Colors.pink));
           }
 
           final rows = snapshot.data!;
@@ -71,18 +64,25 @@ class AdminCountsScreen extends StatelessWidget {
                   DataCell(Text('$count')),
                   DataCell(Text(email)),
                   DataCell(Text('${uid.substring(0, 4)}...${uid.substring(uid.length - 2)}')),
-                  DataCell(IconButton(
-                    icon: const Icon(Icons.restart_alt, color: Colors.orangeAccent),
-                    onPressed: () async {
-                      await _resetUserCounts(uid);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('「$uid」のカウントをリセットしました'),
-                          backgroundColor: Colors.pink,
-                        ),
-                      );
-                    },
-                  )),
+                  DataCell(
+                    IconButton(
+                      icon: const Icon(Icons.restart_alt, color: Colors.orangeAccent),
+                      onPressed: () async {
+                        await _resetUserCounts(uid);
+                        setState(() {
+                          _countsFuture = _loadCountsWithUsers();
+                        });
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('「$uid」のカウントをリセットしました'),
+                              backgroundColor: Colors.pink,
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                  ),
                 ]);
               }),
             ),
@@ -111,22 +111,25 @@ class AdminCountsScreen extends StatelessWidget {
     await batch.commit();
   }
 
-  Future<List<Map<String, dynamic>>> _loadCountsWithUsers(
-    CollectionReference countsRef,
-    CollectionReference usersRef,
-  ) async {
-    final countsSnapshot = await countsRef.orderBy('count', descending: true).get();
-    final usersSnapshot = await usersRef.get();
+  Future<List<Map<String, dynamic>>> _loadCountsWithUsers() async {
+    final countsSnapshot = await FirebaseFirestore.instance
+        .collection('daily_counts_users_total')
+        .orderBy('count', descending: true)
+        .get();
+
+    final usersSnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .get();
 
     final userMap = {
-      for (var doc in usersSnapshot.docs) doc.id: doc.data() as Map<String, dynamic>
+      for (var doc in usersSnapshot.docs)
+        doc.id: doc.data() as Map<String, dynamic>
     };
 
-    final rows = countsSnapshot.docs.map((doc) {
+    return countsSnapshot.docs.map((doc) {
       final uid = doc.id;
       final count = doc['count'] ?? 0;
       final userData = userMap[uid] ?? {};
-
       return {
         'uid': uid,
         'count': count,
@@ -134,7 +137,5 @@ class AdminCountsScreen extends StatelessWidget {
         'email': userData['email'],
       };
     }).toList();
-
-    return rows;
   }
 }
