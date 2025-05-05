@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/user_provider.dart';
-import '../services/auth_service.dart';
 
 class AccountMenu extends StatelessWidget {
   const AccountMenu({super.key});
@@ -27,11 +26,7 @@ class AccountMenu extends StatelessWidget {
         if (value == 'settings') {
           Navigator.pushNamed(context, '/settings');
         } else if (value == 'logout') {
-          await AuthService().signOut();
-          userProvider.clearUser();
-          if (context.mounted) {
-            Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false);
-          }
+          await context.read<UserProvider>().logout(context);
         }
       },
       itemBuilder: (context) => [

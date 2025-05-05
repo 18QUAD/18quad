@@ -28,13 +28,18 @@ class UserProvider with ChangeNotifier {
   // 旧currentUser相当のgetter
   User? get currentUser => _user;
 
+  // 管理者UIDのホワイトリスト
+  static const List<String> adminUids = [
+    'XvDaJNoQfjQY3uHycZTy8TCF2nJ3', // 管理者UIDをここに追加
+  ];
+
   Future<void> loadUser() async {
     _user = _auth.currentUser;
     if (_user != null) {
       final userDoc = await _firestore.collection('users').doc(_user!.uid).get();
       if (userDoc.exists) {
         final data = userDoc.data()!;
-        _isAdmin = data['isAdmin'] ?? false;
+        _isAdmin = adminUids.contains(_user!.uid); // ← 変更点（最小）
         _displayName = data['displayName'] ?? '';
         _groupId = data['groupId'];
         _status = data['status'] ?? 'none';
@@ -54,8 +59,11 @@ class UserProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> logout() async {
+  Future<void> logout(BuildContext context) async {
     await _auth.signOut();
     clearUser();
+    notifyListeners(); // ✅ UIを確実に再描画
+    print('[logout] _user=$_user, isAdmin=$_isAdmin, status=$_status');
+    Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false); // ✅ ログイン画面へ遷移
   }
 }

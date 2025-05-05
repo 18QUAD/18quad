@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:provider/provider.dart';
-import '../providers/user_provider.dart';
 import '../widgets/app_scaffold.dart';
+import 'user_add_dialog.dart';
 
 class AdminCountsScreen extends StatefulWidget {
   const AdminCountsScreen({super.key});
@@ -12,80 +11,90 @@ class AdminCountsScreen extends StatefulWidget {
 }
 
 class _AdminCountsScreenState extends State<AdminCountsScreen> {
-  late Future<List<Map<String, dynamic>>> _countsFuture;
+  late Future<List<Map<String, dynamic>>> _usersFuture;
 
   @override
   void initState() {
     super.initState();
-    _countsFuture = _loadCountsWithUsers();
+    _usersFuture = _loadUsers();
   }
 
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
-      title: 'ユーザ管理', // ← タイトルのみ変更
+      title: 'ユーザ管理',
+      actions: [
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.white,
+            foregroundColor: Colors.pink,
+          ),
+          onPressed: () {
+            showDialog(
+              context: context,
+              builder: (_) => UserAddDialog(
+                onUserAdded: () {
+                  setState(() {
+                    _usersFuture = _loadUsers();
+                  });
+                },
+              ),
+            );
+          },
+          child: const Text('追加'),
+        ),
+      ],
       child: FutureBuilder<List<Map<String, dynamic>>>(
-        future: _countsFuture,
+        future: _usersFuture,
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator(color: Colors.pink));
+            return const Center(
+              child: CircularProgressIndicator(color: Colors.pink),
+            );
           }
 
-          final rows = snapshot.data!;
+          final users = snapshot.data!;
 
-          return SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              headingRowColor: MaterialStateColor.resolveWith(
-                  (states) => Colors.pink.shade700),
-              dataRowColor: MaterialStateColor.resolveWith(
-                  (states) => Colors.grey.shade900),
-              headingTextStyle: const TextStyle(
-                  color: Colors.white, fontWeight: FontWeight.bold),
-              dataTextStyle: const TextStyle(color: Colors.white),
-              columns: const [
-                DataColumn(label: Text('順位')),
-                DataColumn(label: Text('名前')),
-                DataColumn(label: Text('カウント')),
-                DataColumn(label: Text('e-mail')),
-                DataColumn(label: Text('UID')),
-                DataColumn(label: Text('リセット')),
-              ],
-              rows: List.generate(rows.length, (index) {
-                final row = rows[index];
-                final uid = row['uid'];
-                final count = row['count'];
-                final displayName = row['displayName'] ?? '不明';
-                final email = row['email'] ?? '不明';
+          if (users.isEmpty) {
+            return const Center(child: Text('ユーザが存在しません'));
+          }
 
-                return DataRow(cells: [
-                  DataCell(Text('${index + 1}')),
-                  DataCell(Text(displayName)),
-                  DataCell(Text('$count')),
-                  DataCell(Text(email)),
-                  DataCell(Text('${uid.substring(0, 4)}...${uid.substring(uid.length - 2)}')),
-                  DataCell(
-                    IconButton(
-                      icon: const Icon(Icons.restart_alt, color: Colors.orangeAccent),
-                      onPressed: () async {
-                        await _resetUserCounts(uid);
-                        setState(() {
-                          _countsFuture = _loadCountsWithUsers();
-                        });
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('「$uid」のカウントをリセットしました'),
-                              backgroundColor: Colors.pink,
-                            ),
-                          );
-                        }
-                      },
-                    ),
+          return ListView.builder(
+            itemCount: users.length,
+            itemBuilder: (context, index) {
+              final user = users[index];
+              final uid = user['uid'];
+              final name = user['displayName'] ?? '不明';
+              final email = user['email'] ?? '不明';
+
+              return Card(
+                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                child: ListTile(
+                  title: Text(name),
+                  subtitle: Text(
+                    '$email\nUID: ${uid.substring(0, 4)}...${uid.substring(uid.length - 2)}',
+                    style: const TextStyle(fontSize: 12),
                   ),
-                ]);
-              }),
-            ),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.restart_alt, color: Colors.orange),
+                    onPressed: () async {
+                      await _resetUserCounts(uid);
+                      setState(() {
+                        _usersFuture = _loadUsers();
+                      });
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('「$uid」のカウントをリセットしました'),
+                            backgroundColor: Colors.pink,
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                ),
+              );
+            },
           );
         },
       ),
@@ -103,38 +112,21 @@ class _AdminCountsScreenState extends State<AdminCountsScreen> {
       batch.delete(doc.reference);
     }
 
-    final totalDoc = FirebaseFirestore.instance
-        .collection('daily_counts_users_total')
-        .doc(uid);
-    batch.delete(totalDoc);
-
     await batch.commit();
   }
 
-  Future<List<Map<String, dynamic>>> _loadCountsWithUsers() async {
-    final countsSnapshot = await FirebaseFirestore.instance
-        .collection('daily_counts_users_total')
-        .orderBy('count', descending: true)
-        .get();
-
+  Future<List<Map<String, dynamic>>> _loadUsers() async {
     final usersSnapshot = await FirebaseFirestore.instance
         .collection('users')
+        .orderBy('createdAt')
         .get();
 
-    final userMap = {
-      for (var doc in usersSnapshot.docs)
-        doc.id: doc.data() as Map<String, dynamic>
-    };
-
-    return countsSnapshot.docs.map((doc) {
-      final uid = doc.id;
-      final count = doc['count'] ?? 0;
-      final userData = userMap[uid] ?? {};
+    return usersSnapshot.docs.map((doc) {
+      final data = doc.data();
       return {
-        'uid': uid,
-        'count': count,
-        'displayName': userData['displayName'],
-        'email': userData['email'],
+        'uid': doc.id,
+        'displayName': data['displayName'],
+        'email': data['email'],
       };
     }).toList();
   }

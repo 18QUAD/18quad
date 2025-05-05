@@ -1,15 +1,21 @@
-import { onRequest } from 'firebase-functions/v2/https';
+import { onCall } from 'firebase-functions/v2/https';
 import { auth, db } from '../firebase.config.js';
 import { FieldValue } from 'firebase-admin/firestore';
 
-export const createUser = onRequest(async (req, res) => {
+export const createUser = onCall(async (request) => {
   try {
-    const { email, password, displayName } = req.body;
+    const { email, password, displayName } = request.data;
+
     if (!email || !password || !displayName) {
-      return res.status(400).send('Missing required fields');
+      throw new Error('Missing required fields');
     }
 
-    const userRecord = await auth.createUser({ email, password, displayName });
+    const userRecord = await auth.createUser({
+      email,
+      password,
+      displayName,
+    });
+
     await db.collection('users').doc(userRecord.uid).set({
       uid: userRecord.uid,
       email,
@@ -20,9 +26,9 @@ export const createUser = onRequest(async (req, res) => {
       iconUrl: '',
     });
 
-    res.status(200).send('User created successfully');
+    return { success: true };
   } catch (error) {
     console.error('Error creating user:', error);
-    res.status(500).send('Internal server error');
+    throw new Error('Internal server error');
   }
 });

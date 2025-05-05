@@ -10,7 +10,7 @@ import 'package:rennda_app/screens/register_screen.dart';
 import 'package:rennda_app/screens/settings_screen.dart';
 import 'package:rennda_app/screens/ranking_screen.dart';
 import 'package:rennda_app/screens/group_manage_screen.dart';
-import 'package:rennda_app/screens/group_request_screen.dart'; // ← 正しいファイル名
+import 'package:rennda_app/screens/group_request_screen.dart';
 import 'package:rennda_app/screens/group_create_screen.dart' as user;
 import 'package:rennda_app/screens/admin_counts_screen.dart';
 import 'package:rennda_app/screens/admin_group_requests_screen.dart' as admin;
@@ -50,10 +50,13 @@ class MyApp extends StatelessWidget {
         '/settings': (context) => const SettingsScreen(),
         '/ranking': (context) => const RankingScreen(),
         '/groupManage': (context) => const GroupManageScreen(),
-        '/groupRequest': (context) => const GroupRequestScreen(), // 単数形に修正
+        '/groupRequest': (context) => const GroupRequestScreen(),
         '/groupCreate': (context) => const user.GroupCreateScreen(),
         '/adminCounts': (context) => const AdminCountsScreen(),
         '/adminGroupRequests': (context) => const admin.AdminGroupRequestsScreen(),
+
+        // ★ 追加（これで /admin に遷移可能）
+        '/admin': (context) => const AdminCountsScreen(),
       },
     );
   }

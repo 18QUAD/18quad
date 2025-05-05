@@ -1,9 +1,5 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:firebase_auth/firebase_auth.dart';
-
-const functionUrl = 'https://createuser-eln222kfca-uc.a.run.app';
+import 'package:cloud_functions/cloud_functions.dart';
 
 class UserAddDialog extends StatefulWidget {
   final VoidCallback onUserAdded;
@@ -23,26 +19,19 @@ class _UserAddDialogState extends State<UserAddDialog> {
   Future<void> _createUser() async {
     setState(() => isLoading = true);
     try {
-      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
-      final response = await http.post(
-        Uri.parse(functionUrl),
-        headers: {
-          'Authorization': 'Bearer $idToken',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'email': emailController.text.trim(),
-          'password': passwordController.text.trim(),
-          'displayName': nameController.text.trim(),
-        }),
-      );
+      final callable = FirebaseFunctions.instance.httpsCallable('createUser');
+      final result = await callable.call({
+        'email': emailController.text.trim(),
+        'password': passwordController.text.trim(),
+        'displayName': nameController.text.trim(),
+      });
 
-      if (response.statusCode == 200) {
+      if (result.data != null) {
         widget.onUserAdded();
         Navigator.of(context).pop();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('登録に失敗しました: ${response.body}')),
+          const SnackBar(content: Text('登録に失敗しました')),
         );
       }
     } catch (e) {

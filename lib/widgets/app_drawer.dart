@@ -1,19 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:rennda_app/providers/user_provider.dart';
 
 class AppDrawer extends StatelessWidget {
-  final bool isLoggedIn;
-  final String userStatus;
-  final bool isAdmin;
-
-  const AppDrawer({
-    super.key,
-    required this.isLoggedIn,
-    required this.userStatus,
-    required this.isAdmin,
-  });
+  const AppDrawer({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final userProvider = context.watch<UserProvider>();
+    final isLoggedIn = userProvider.currentUser != null;
+    final userStatus = userProvider.status;
+    final isAdmin = userProvider.isAdmin;
+
     return Drawer(
       child: ListView(
         padding: EdgeInsets.zero,
@@ -70,7 +68,7 @@ class AppDrawer extends StatelessWidget {
             leading: const Icon(Icons.assignment_ind),
             title: const Text('参加リクエスト管理'),
             onTap: isLoggedIn && userStatus == 'manager'
-                ? () => Navigator.pushNamed(context, '/adminGroupRequests') // ← 修正済み
+                ? () => Navigator.pushNamed(context, '/adminGroupRequests')
                 : null,
           ),
         ],
