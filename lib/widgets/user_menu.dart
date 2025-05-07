@@ -5,7 +5,7 @@ import 'package:rennda_app/providers/user_provider.dart';
 class UserMenu extends StatelessWidget {
   const UserMenu({super.key});
 
-  static const String _defaultIconUrl = 'assets/images/default_user_icon.png';
+  static const String _defaultIconUrl = 'https://firebasestorage.googleapis.com/v0/b/quad-2c91f.firebasestorage.app/o/user_icons%2Fdefault.png?alt=media&token=a2b91b53-2904-4601-b734-fbf92bc82ade';
 
   @override
   Widget build(BuildContext context) {

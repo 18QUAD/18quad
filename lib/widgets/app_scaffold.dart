@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:rennda_app/widgets/app_drawer.dart';
 import 'package:rennda_app/widgets/user_menu.dart';
+import 'package:rennda_app/widgets/notification_menu.dart'; // ← 追加
 
 class AppScaffold extends StatelessWidget {
   final String title;
@@ -20,6 +21,7 @@ class AppScaffold extends StatelessWidget {
       appBar: AppBar(
         title: Text(title),
         actions: [
+          const NotificationMenu(), // ← 通知メニュー復活
           if (actions != null) ...actions!,
           const UserMenu(),
         ],

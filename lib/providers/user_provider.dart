@@ -63,7 +63,6 @@ class UserProvider with ChangeNotifier {
     await _auth.signOut();
     clearUser();
     notifyListeners(); // ✅ UIを確実に再描画
-    print('[logout] _user=$_user, isAdmin=$_isAdmin, status=$_status');
     Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false); // ✅ ログイン画面へ遷移
   }
 }

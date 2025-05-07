@@ -167,24 +167,20 @@ class _GroupRequestBodyState extends State<_GroupRequestBody> {
       );
 
       final groupName = _groupData?['name'] ?? '不明なグループ';
-      await FirebaseFirestore.instance.collection('notifications').add({
-        'toUid': currentUser.uid,
-        'message': '$groupName にグループ参加申請を送信しました',
-        'timestamp': Timestamp.now(),
-        'isRead': false,
-      });
+      await FirestoreService.sendNotification(
+        toUid: currentUser.uid,
+        message: '$groupName にグループ参加申請を送信しました',
+      );
 
       final groupDoc = await FirebaseFirestore.instance.collection('groups').doc(_groupDocId).get();
       final ownerUid = groupDoc.data()?['ownerUid'];
       final requesterName = currentUser.displayName ?? '誰か';
 
       if (ownerUid != null && ownerUid != currentUser.uid) {
-        await FirebaseFirestore.instance.collection('notifications').add({
-          'toUid': ownerUid,
-          'message': '$requesterName からグループ参加申請が届きました',
-          'timestamp': Timestamp.now(),
-          'isRead': false,
-        });
+        await FirestoreService.sendNotification(
+          toUid: ownerUid,
+          message: '$requesterName からグループ参加申請が届きました',
+        );
       }
 
       ScaffoldMessenger.of(context).showSnackBar(

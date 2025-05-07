@@ -162,6 +162,16 @@ class FirestoreService {
     return doc.data();
   }
 
+  static Future<String?> getGroupIdByOwnerUid(String uid) async {
+    final snapshot = await _db
+        .collection('groups')
+        .where('ownerUid', isEqualTo: uid)
+        .limit(1)
+        .get();
+    if (snapshot.docs.isEmpty) return null;
+    return snapshot.docs.first.id;
+  }
+
   static Future<void> createGroup({
     required String groupName,
     String? description,
@@ -198,14 +208,13 @@ class FirestoreService {
 
   static Future<void> updateGroup({
     required String groupId,
-    required String name,
-    required String description,
+    String? name,
+    String? description,
     Uint8List? iconBytes,
   }) async {
-    final Map<String, dynamic> updateData = {
-      'name': name,
-      'description': description,
-    };
+    final updateData = <String, dynamic>{};
+    if (name != null) updateData['name'] = name;
+    if (description != null) updateData['description'] = description;
 
     if (iconBytes != null) {
       final doc = await _db.collection('groups').doc(groupId).get();
@@ -263,7 +272,7 @@ class FirestoreService {
     required String inviteCode,
     required String message,
   }) async {
-    await _db.collection('users').doc(requesterId).collection('group_requests').add({
+    await _db.collection('groupRequests').add({
       'requesterId': requesterId,
       'groupId': groupId,
       'inviteCode': inviteCode,
@@ -273,9 +282,53 @@ class FirestoreService {
     });
   }
 
+  static Future<List<Map<String, dynamic>>> getGroupRequestsByGroupId(String groupId) async {
+    final snapshot = await _db
+        .collection('groupRequests')
+        .where('groupId', isEqualTo: groupId)
+        .where('status', isEqualTo: 'pending')
+        .orderBy('createdAt', descending: true)
+        .get();
+    return snapshot.docs.map((doc) => doc.data()).toList();
+  }
+
+  static Future<void> updateGroupRequestStatus({
+    required String requesterId,
+    required String groupId,
+    required String status,
+  }) async {
+    final query = await _db
+        .collection('groupRequests')
+        .where('requesterId', isEqualTo: requesterId)
+        .where('groupId', isEqualTo: groupId)
+        .limit(1)
+        .get();
+
+    if (query.docs.isEmpty) return;
+
+    final docRef = query.docs.first.reference;
+    await docRef.update({'status': status});
+  }
+
   static String _generateInviteCode() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     final random = Random();
     return List.generate(8, (index) => chars[random.nextInt(chars.length)]).join();
+  }
+
+  // ----------------------------
+  // 通知（notifications）
+  // ----------------------------
+
+  static Future<void> sendNotification({
+    required String toUid,
+    required String message,
+  }) async {
+    await _db.collection('notifications').add({
+      'toUid': toUid,
+      'message': message,
+      'timestamp': Timestamp.now(),
+      'isRead': false,
+    });
   }
 }

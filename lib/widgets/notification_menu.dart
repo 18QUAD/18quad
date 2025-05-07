@@ -1,76 +1,68 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
 import 'package:badges/badges.dart' as badges;
 
-class NotificationMenu extends StatefulWidget {
+import '../providers/user_provider.dart';
+
+class NotificationMenu extends StatelessWidget {
   const NotificationMenu({super.key});
 
   @override
-  State<NotificationMenu> createState() => _NotificationMenuState();
-}
+  Widget build(BuildContext context) {
+    final userProvider = context.watch<UserProvider>();
+    final currentUser = userProvider.currentUser;
+    if (currentUser == null) {
+      return const Icon(Icons.notifications_none);
+    }
 
-class _NotificationMenuState extends State<NotificationMenu> {
-  List<QueryDocumentSnapshot<Map<String, dynamic>>> _unreadNotices = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadUnreadNotifications();
-  }
-
-  Future<void> _loadUnreadNotifications() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-    final snapshot = await FirebaseFirestore.instance
+    final uid = currentUser.uid;
+    final stream = FirebaseFirestore.instance
         .collection('notifications')
-        .where('toUid', isEqualTo: user.uid)
+        .where('toUid', isEqualTo: uid)
         .where('isRead', isEqualTo: false)
         .orderBy('timestamp', descending: true)
         .limit(5)
-        .get();
+        .snapshots();
 
-    setState(() {
-      _unreadNotices = snapshot.docs;
-    });
-  }
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: stream,
+      builder: (context, snapshot) {
+        final unreadNotices = snapshot.data?.docs ?? [];
 
-  @override
-  Widget build(BuildContext context) {
-    return PopupMenuButton<String>(
-      offset: const Offset(0, 50),
-      icon: badges.Badge(
-        showBadge: _unreadNotices.isNotEmpty,
-        badgeContent: Text(
-          '${_unreadNotices.length}',
-          style: const TextStyle(color: Colors.white, fontSize: 10),
-        ),
-        position: badges.BadgePosition.topEnd(top: -4, end: -4),
-        child: const Icon(Icons.notifications),
-      ),
-      itemBuilder: (context) {
-        if (_unreadNotices.isEmpty) {
-          return [
-            const PopupMenuItem<String>(
-              enabled: false,
-              child: Text('通知はありません'),
+        return PopupMenuButton<String>(
+          offset: const Offset(0, 50),
+          icon: badges.Badge(
+            showBadge: unreadNotices.isNotEmpty,
+            badgeContent: Text(
+              '${unreadNotices.length}',
+              style: const TextStyle(color: Colors.white, fontSize: 10),
             ),
-          ];
-        }
+            position: badges.BadgePosition.topEnd(top: -4, end: -4),
+            child: const Icon(Icons.notifications),
+          ),
+          itemBuilder: (context) {
+            if (unreadNotices.isEmpty) {
+              return [
+                const PopupMenuItem<String>(
+                  enabled: false,
+                  child: Text('通知はありません'),
+                ),
+              ];
+            }
 
-        return _unreadNotices.map((doc) {
-          final data = doc.data();
-          return PopupMenuItem<String>(
-            enabled: true,
-            child: Text(data['message'] ?? '（内容なし）'),
-            onTap: () async {
-              await doc.reference.update({'isRead': true});
-              setState(() {
-                _unreadNotices.remove(doc);
-              });
-            },
-          );
-        }).toList();
+            return unreadNotices.map((doc) {
+              final data = doc.data();
+              return PopupMenuItem<String>(
+                enabled: true,
+                child: Text(data['message'] ?? '（内容なし）'),
+                onTap: () async {
+                  await doc.reference.update({'isRead': true});
+                },
+              );
+            }).toList();
+          },
+        );
       },
     );
   }
