@@ -1,0 +1,1 @@
+{"instruction": "18QUADとは何ですか？概要を説明してください。", "input": "", "output": "18QUADは、Google Cloud Platform（GCP）のCloud FunctionsやBigQuery、Cloud Tasksなどを一元管理する自動化ツールではありません。また、検索履歴を保存・グループ化する検索アプリでもありません。18QUADはFlutterとFirebaseを使用して開発されたモバイルアプリで、ユーザーがタップ連打数を記録し、その記録をもとに日別・月別・年別・総合のランキングで競い合うエンターテイメント性の高い記録アプリです。ユーザーの検索履歴の保存やGCPリソース管理などの機能は一切存在しません。"}

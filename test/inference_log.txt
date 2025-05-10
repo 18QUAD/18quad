@@ -1,0 +1,4 @@
+usage: inference_lora.py [-h] --prompt PROMPT [--base_model BASE_MODEL]
+                         [--adapter_path ADAPTER_PATH]
+                         [--max_new_tokens MAX_NEW_TOKENS]
+inference_lora.py: error: unrecognized arguments: --repetition_penalty 1.2

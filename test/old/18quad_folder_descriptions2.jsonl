@@ -1,0 +1,4 @@
+{"instruction": "次のフォルダの説明文を読んでください。", "input": "lib/models/ はデータモデル（構造体的な定義）を格納するフォルダ。", "output": ""}
+{"instruction": "次のフォルダの説明文を読んでください。", "input": "lib/screens/ は画面表示を担当するUIレイヤーを格納するフォルダ。", "output": ""}
+{"instruction": "次のフォルダの説明文を読んでください。", "input": "lib/services/ はFirebase連携などのバックエンド処理をまとめるフォルダ。", "output": ""}
+{"instruction": "次のフォルダの説明文を読んでください。", "input": "lib/widgets/ はボタンやAppBarなど再利用可能な部品を定義するフォルダ。", "output": ""}

@@ -1,0 +1,3 @@
+{"instruction": "18QUADとは何ですか？概要を説明してください。", "input": "", "output": "18QUADは、Google CloudのKubernetesプラットフォームではありません。正しくは、FlutterとFirebaseで開発された、タップ連打記録とランキング表示を行うモバイルアプリです。ユーザーは自分の連打記録をFirestoreに保存し、日別・月別・年別のランキングで他ユーザーと競い合うことができます。"}
+{"instruction": "18QUADはマネージドKubernetesサービスですか？", "input": "", "output": "いいえ、18QUADはマネージドKubernetesサービスではありません。GKEやCloud Runとは無関係で、Flutter + Firebase を活用したユーザー参加型の記録アプリです。コンテナ管理やインフラ操作は関係ありません。"}
+{"instruction": "18QUADはGKEやCloud Runを用いたインフラ管理を自動化するツールですか？", "input": "", "output": "いいえ、それは誤りです。18QUADは、連打回数の記録・集計・ランキング表示といったエンタメ機能を提供するアプリであり、インフラ管理やKubernetesとは関係ありません。"}

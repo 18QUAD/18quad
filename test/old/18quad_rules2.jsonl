@@ -1,0 +1,25 @@
+{"instruction": "以下の18QUADのルール文を読み取り、内容を理解しやすく要約してください。", "input": "仮パラメータ（例: your_app）や未定義識別子は禁止", "output": ""}
+{"instruction": "以下の18QUADのルール文を読み取り、内容を理解しやすく要約してください。", "input": "そのままビルド可能で、既存機能にデグレのない完全なコードのみ出力", "output": ""}
+{"instruction": "以下の18QUADのルール文を読み取り、内容を理解しやすく要約してください。", "input": "出力前に不明点は必ず確認する", "output": ""}
+{"instruction": "以下の18QUADのルール文を読み取り、内容を理解しやすく要約してください。", "input": "差分ではなく常に全文出力", "output": ""}
+{"instruction": "以下の18QUADのルール文を読み取り、内容を理解しやすく要約してください。", "input": "出力時には変更内容の要約とソースコード行数の増減（物理的行数で±表記）を含める", "output": ""}
+{"instruction": "以下の18QUADのルール文を読み取り、内容を理解しやすく要約してください。", "input": "ディレクトリ構成は models/, services/, screens/, widgets/ に分割", "output": ""}
+{"instruction": "以下の18QUADのルール文を読み取り、内容を理解しやすく要約してください。", "input": "UserProviderでログイン状態やアイコンURL、isAdminなどを管理", "output": ""}
+{"instruction": "以下の18QUADのルール文を読み取り、内容を理解しやすく要約してください。", "input": "context.watch() / context.read() を使用して状態取得", "output": ""}
+{"instruction": "以下の18QUADのルール文を読み取り、内容を理解しやすく要約してください。", "input": "AppScaffoldを全画面で使用し、child:パラメータ形式を絶対に守る", "output": ""}
+{"instruction": "以下の18QUADのルール文を読み取り、内容を理解しやすく要約してください。", "input": "firestore_service.dart にすべてのFirestoreアクセスを集約", "output": ""}
+{"instruction": "以下の18QUADのルール文を読み取り、内容を理解しやすく要約してください。", "input": "画面から直接Firestoreにアクセスしてはならない", "output": ""}
+{"instruction": "以下の18QUADのルール文を読み取り、内容を理解しやすく要約してください。", "input": "firestore_schema.mdに記載のないフィールドやコレクションは使用禁止", "output": ""}
+{"instruction": "以下の18QUADのルール文を読み取り、内容を理解しやすく要約してください。", "input": "新項目を使いたい場合は事前にfirestore_schema.mdを更新する", "output": ""}
+{"instruction": "以下の18QUADのルール文を読み取り、内容を理解しやすく要約してください。", "input": "カウントはdaily_countsに記録し、集計用ドキュメントとは責務を分離", "output": ""}
+{"instruction": "以下の18QUADのルール文を読み取り、内容を理解しやすく要約してください。", "input": "ランキングは日別＝当日リアルタイム、月/年/総合＝静的な前日までの集計値で表示", "output": ""}
+{"instruction": "以下の18QUADのルール文を読み取り、内容を理解しやすく要約してください。", "input": "status: none → 参加・リクエスト可", "output": ""}
+{"instruction": "以下の18QUADのルール文を読み取り、内容を理解しやすく要約してください。", "input": "status: member → リクエスト不可", "output": ""}
+{"instruction": "以下の18QUADのルール文を読み取り、内容を理解しやすく要約してください。", "input": "status: manager → グループ管理画面有効、リクエスト不可", "output": ""}
+{"instruction": "以下の18QUADのルール文を読み取り、内容を理解しやすく要約してください。", "input": "未ログイン時でも右上にユーザーアイコン（アカウントメニュー）を表示", "output": ""}
+{"instruction": "以下の18QUADのルール文を読み取り、内容を理解しやすく要約してください。", "input": "通知ベルに未読数を表示し、クリックで一覧をメニュー表示", "output": ""}
+{"instruction": "以下の18QUADのルール文を読み取り、内容を理解しやすく要約してください。", "input": "不要なリファクタやついでの修正は禁止", "output": ""}
+{"instruction": "以下の18QUADのルール文を読み取り、内容を理解しやすく要約してください。", "input": "外部から呼ばれる関数の引数を変更する場合は事前に確認を取ること", "output": ""}
+{"instruction": "以下の18QUADのルール文を読み取り、内容を理解しやすく要約してください。", "input": "コードを修正する前に必ず元のソースを全行読み込むこと", "output": ""}
+{"instruction": "以下の18QUADのルール文を読み取り、内容を理解しやすく要約してください。", "input": "修正対象ファイルが手元にない場合は明示してから作業すること", "output": ""}
+{"instruction": "以下の18QUADのルール文を読み取り、内容を理解しやすく要約してください。", "input": "ソースコードはチャット内貼り付けとファイル出力の両方で提示すること", "output": ""}

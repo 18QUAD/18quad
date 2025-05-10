@@ -1,0 +1,4 @@
+{"instruction": "次のスキーマ項目の内容を読んでください。", "input": "users コレクションには、ユーザーの表示名、メールアドレス、グループID、ステータス、アイコンURL、作成日時が保存される。", "output": ""}
+{"instruction": "次のスキーマ項目の内容を読んでください。", "input": "groups コレクションには、グループ名、説明文、アイコン画像、招待コード、作成者UID、オーナーUID、作成日時が保存される。", "output": ""}
+{"instruction": "次のスキーマ項目の内容を読んでください。", "input": "groupRequests コレクションには、参加申請を送ったユーザーUID、対象グループID、招待コード、申請メッセージ、状態（pending, approved, rejected）、作成日時が保存される。", "output": ""}
+{"instruction": "次のスキーマ項目の内容を読んでください。", "input": "notifications コレクションには、通知対象のユーザーID、通知メッセージ、送信日時、既読フラグが保存される。", "output": ""}
