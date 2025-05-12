@@ -1,0 +1,53 @@
+base_model: meta-llama/Meta-Llama-3-8B-Instruct
+model_type: llama
+tokenizer_type: AutoTokenizer
+load_in_8bit: false
+load_in_4bit: true
+
+datasets:
+  - path: json  # ← これを明示的に追加
+    data_files: /workspace/data/train.json
+    type: completion
+
+dataset_prepared_path: /workspace/processed_data
+val_set_size: 0.0
+output_dir: /workspace/lora-out
+
+adapter: lora
+lora_r: 8
+lora_alpha: 16
+lora_dropout: 0.05
+lora_target_modules:
+  - q_proj
+  - k_proj
+  - v_proj
+  - o_proj
+  - gate_proj
+  - up_proj
+  - down_proj
+
+sequence_len: 2048
+
+train_on_inputs: false
+add_eos_token: true
+group_by_length: false
+
+gradient_accumulation_steps: 1
+micro_batch_size: 6
+num_epochs: 3
+optimizer: adamw_bnb_8bit
+lr_scheduler: cosine
+learning_rate: 2e-4
+train_steps: 1000
+
+warmup_steps: 50
+logging_steps: 10
+eval_steps: 0
+save_steps: 100
+save_total_limit: 2
+
+bf16: false
+fp16: true
+tf32: true
+
+wandb_project: 18QUAD-LoRA
